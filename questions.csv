@@ -1,0 +1,101 @@
+questionText,optionA,optionB,optionC,optionD,correctAnswer,createdAt
+What does HTML stand for?,Hyper Text Markup Language,High Tech Modern Language,Hyper Transfer Markup Logic,Home Tool Markup Language,A,2024-01-01T00:00:00Z
+Which HTML tag is used to define the root of an HTML document?,<root>,<html>,<head>,<body>,B,2024-01-01T00:00:00Z
+Which tag is used to create a paragraph in HTML?,<para>,<p>,<pg>,<paragraph>,B,2024-01-01T00:00:00Z
+Which HTML tag is used for the largest heading?,<h6>,<heading>,<h1>,<head>,C,2024-01-01T00:00:00Z
+Which tag creates a hyperlink in HTML?,<link>,<a>,<href>,<url>,B,2024-01-01T00:00:00Z
+What attribute is used to specify the URL of a hyperlink?,src,href,link,url,B,2024-01-01T00:00:00Z
+Which tag is used to insert an image in HTML?,<image>,<img>,<pic>,<src>,B,2024-01-01T00:00:00Z
+What attribute specifies the image source in an img tag?,href,link,src,alt,C,2024-01-01T00:00:00Z
+Which tag is used to create an unordered list?,<ul>,<ol>,<li>,<list>,A,2024-01-01T00:00:00Z
+Which tag is used to create an ordered list?,<ul>,<ol>,<li>,<dl>,B,2024-01-01T00:00:00Z
+Which tag defines a list item?,<li>,<item>,<list>,<dt>,A,2024-01-01T00:00:00Z
+Which HTML tag is used to make text bold?,<bold>,<b>,<strong>,<em>,B,2024-01-01T00:00:00Z
+Which tag makes text italic in HTML?,<i>,<italic>,<em>,<slant>,A,2024-01-01T00:00:00Z
+What does the br tag do?,Creates a bold text,Breaks a line,Creates a border,Defines a body,B,2024-01-01T00:00:00Z
+Which tag is used to create a horizontal rule?,<line>,<hr>,<rule>,<border>,B,2024-01-01T00:00:00Z
+Where is the title tag placed in an HTML document?,Inside body,Inside footer,Inside head,Inside html,C,2024-01-01T00:00:00Z
+Which tag is used to define a table row?,<tr>,<td>,<th>,<row>,A,2024-01-01T00:00:00Z
+Which tag defines a table header cell?,<th>,<td>,<tr>,<thead>,A,2024-01-01T00:00:00Z
+Which tag defines a standard table data cell?,<td>,<th>,<tr>,<cell>,A,2024-01-01T00:00:00Z
+Which tag is used to define a table in HTML?,<table>,<tab>,<grid>,<tbl>,A,2024-01-01T00:00:00Z
+What does the alt attribute in an img tag do?,Changes image size,Links the image,Provides alternative text,Aligns the image,C,2024-01-01T00:00:00Z
+Which HTML element is used to define important text?,<strong>,<b>,<em>,<mark>,A,2024-01-01T00:00:00Z
+Which attribute opens a hyperlink in a new tab?,target=_new,target=_blank,target=_tab,target=_open,B,2024-01-01T00:00:00Z
+Which tag is used to create a form in HTML?,<form>,<input>,<fieldset>,<submit>,A,2024-01-01T00:00:00Z
+Which input type creates a checkbox?,type=check,type=box,type=checkbox,type=tick,C,2024-01-01T00:00:00Z
+Which input type creates a radio button?,type=radio,type=button,type=circle,type=select,A,2024-01-01T00:00:00Z
+Which tag is used to create a dropdown list?,<select>,<dropdown>,<list>,<option>,A,2024-01-01T00:00:00Z
+Which tag defines each option inside a select element?,<item>,<li>,<option>,<opt>,C,2024-01-01T00:00:00Z
+Which input type creates a single-line text box?,type=text,type=box,type=input,type=field,A,2024-01-01T00:00:00Z
+Which tag creates a multi-line text input?,input type=textarea,<textarea>,<textbox>,<multiline>,B,2024-01-01T00:00:00Z
+Which HTML attribute is used to define inline styles?,style,css,class,format,A,2024-01-01T00:00:00Z
+Which attribute assigns a unique identifier to an element?,name,id,class,key,B,2024-01-01T00:00:00Z
+Which attribute assigns a reusable class name to an element?,id,name,class,type,C,2024-01-01T00:00:00Z
+What is the correct HTML element for inserting a line break?,<lb>,<break>,<br>,<newline>,C,2024-01-01T00:00:00Z
+Which tag wraps the visible content of a web page?,<content>,<main>,<body>,<section>,C,2024-01-01T00:00:00Z
+Which HTML5 tag defines navigation links?,<nav>,<navigate>,<menu>,<links>,A,2024-01-01T00:00:00Z
+Which HTML5 tag defines a section of a document?,<div>,<section>,<article>,<aside>,B,2024-01-01T00:00:00Z
+Which HTML5 element is used for self-contained content like a blog post?,<section>,<div>,<article>,<content>,C,2024-01-01T00:00:00Z
+Which HTML5 tag defines content tangentially related to the main content?,<aside>,<sidebar>,<extra>,<note>,A,2024-01-01T00:00:00Z
+Which HTML5 tag defines a header for a document or section?,<top>,<head>,<header>,<hgroup>,C,2024-01-01T00:00:00Z
+Which HTML5 element defines a footer for a document or section?,<bottom>,<footer>,<end>,<foot>,B,2024-01-01T00:00:00Z
+Which HTML5 element is used to embed video content?,<video>,<media>,<movie>,<embed>,A,2024-01-01T00:00:00Z
+Which HTML5 element is used to embed audio content?,<sound>,<audio>,<music>,<media>,B,2024-01-01T00:00:00Z
+Which tag is used to define a section of preformatted text?,<pre>,<code>,<format>,<text>,A,2024-01-01T00:00:00Z
+What does the code tag represent?,Bold code text,A block of computer code,A comment,An inline input,B,2024-01-01T00:00:00Z
+Which tag is used to display a definition term in a description list?,<dt>,<dd>,<dl>,<def>,A,2024-01-01T00:00:00Z
+Which tag is used for a description/definition in a description list?,<dd>,<dt>,<dl>,<desc>,A,2024-01-01T00:00:00Z
+Which HTML element represents a caption for a figure element?,<caption>,<figcaption>,<label>,<desc>,B,2024-01-01T00:00:00Z
+Which HTML element wraps media like illustrations and diagrams?,<media>,<figure>,<image>,<section>,B,2024-01-01T00:00:00Z
+Which meta attribute is used to set the character encoding of a page?,name=author,charset,http-equiv,content,B,2024-01-01T00:00:00Z
+What is the correct HTML5 doctype declaration?,DOCTYPE HTML5,DOCTYPE html,doctype html,HTML5,B,2024-01-01T00:00:00Z
+Which tag links an external CSS stylesheet?,<link>,<style>,<css>,<stylesheet>,A,2024-01-01T00:00:00Z
+Which attribute of the link tag specifies the relationship type?,rel,type,href,src,A,2024-01-01T00:00:00Z
+Which tag embeds JavaScript directly in an HTML page?,<javascript>,<js>,<script>,<code>,C,2024-01-01T00:00:00Z
+What does the head section of an HTML document contain?,Visible page content,Navigation links,Meta information and links to resources,Page footer,C,2024-01-01T00:00:00Z
+Which attribute is used to specify a tooltip for an element?,title,tooltip,hint,alt,A,2024-01-01T00:00:00Z
+Which HTML tag is used to define a block-level generic container?,<div>,<span>,<section>,<block>,A,2024-01-01T00:00:00Z
+Which HTML tag is used to define an inline generic container?,<div>,<inline>,<span>,<text>,C,2024-01-01T00:00:00Z
+Which form attribute specifies where to send the form data?,action,method,target,submit,A,2024-01-01T00:00:00Z
+Which form method sends data in the URL query string?,POST,GET,SEND,PUT,B,2024-01-01T00:00:00Z
+Which input type is used to submit a form?,type=send,type=go,type=submit,type=enter,C,2024-01-01T00:00:00Z
+Which HTML attribute disables a form element?,readonly,inactive,disabled,off,C,2024-01-01T00:00:00Z
+Which HTML attribute makes a form field required?,mandatory,required,must,needed,B,2024-01-01T00:00:00Z
+Which attribute sets placeholder text inside an input?,hint,placeholder,default,label,B,2024-01-01T00:00:00Z
+What does the label tag do in a form?,Styles an input,Identifies and describes an input element,Submits the form,Validates the input,B,2024-01-01T00:00:00Z
+Which attribute links a label to its form element?,for,id,name,link,A,2024-01-01T00:00:00Z
+Which input type is used for entering a password?,type=secret,type=hide,type=password,type=pass,C,2024-01-01T00:00:00Z
+Which input type is used to pick a date?,type=calendar,type=date,type=time,type=day,B,2024-01-01T00:00:00Z
+Which input type creates a color picker?,type=colour,type=picker,type=color,type=paint,C,2024-01-01T00:00:00Z
+Which input type creates a numeric range slider?,type=slide,type=number,type=range,type=slider,C,2024-01-01T00:00:00Z
+Which attribute specifies the maximum value for a number input?,max,limit,highest,top,A,2024-01-01T00:00:00Z
+Which attribute specifies the minimum value for a number input?,min,low,bottom,least,A,2024-01-01T00:00:00Z
+What is the default method for submitting an HTML form?,POST,GET,SEND,DELETE,B,2024-01-01T00:00:00Z
+Which HTML tag is used for emphasized text?,<em>,<i>,<stress>,<focus>,A,2024-01-01T00:00:00Z
+Which tag marks deleted text shown with strikethrough?,<strike>,<del>,<s>,<remove>,B,2024-01-01T00:00:00Z
+Which tag marks inserted or added text?,<ins>,<add>,<new>,<insert>,A,2024-01-01T00:00:00Z
+Which tag displays text as subscript?,<sub>,<low>,<down>,<subscript>,A,2024-01-01T00:00:00Z
+Which tag displays text as superscript?,<sup>,<high>,<up>,<superscript>,A,2024-01-01T00:00:00Z
+Which tag marks highlighted text?,<mark>,<highlight>,<yellow>,<span>,A,2024-01-01T00:00:00Z
+Which tag is used for a short inline quotation?,<q>,<quote>,<cite>,<bq>,A,2024-01-01T00:00:00Z
+Which tag is used for a block quotation?,<blockquote>,<quote>,<bq>,<section>,A,2024-01-01T00:00:00Z
+Which tag defines the title or name of a cited work?,<title>,<cite>,<work>,<ref>,B,2024-01-01T00:00:00Z
+Which tag defines an abbreviation?,<abbr>,<abr>,<short>,<acronym>,A,2024-01-01T00:00:00Z
+Which tag defines contact information for the author?,<contact>,<address>,<info>,<author>,B,2024-01-01T00:00:00Z
+Which HTML attribute specifies the language of an element's content?,language,lang,locale,content-lang,B,2024-01-01T00:00:00Z
+Which HTML tag embeds another web page within the current page?,<embed>,<frame>,<iframe>,<page>,C,2024-01-01T00:00:00Z
+Which HTML element is used to draw graphics via JavaScript?,<draw>,<graphics>,<canvas>,<svg>,C,2024-01-01T00:00:00Z
+Which HTML element is used for scalable vector graphics?,<canvas>,<svg>,<vector>,<graphics>,B,2024-01-01T00:00:00Z
+Which tag is used to group table header rows?,<thead>,<th>,<header>,<tgroup>,A,2024-01-01T00:00:00Z
+Which tag is used to group the body rows of a table?,<tbody>,<body>,<td>,<trow>,A,2024-01-01T00:00:00Z
+Which tag is used to group the footer rows of a table?,<tfoot>,<footer>,<tfooter>,<tend>,A,2024-01-01T00:00:00Z
+Which attribute merges table cells horizontally?,rowspan,colspan,merge,cellspan,B,2024-01-01T00:00:00Z
+Which attribute merges table cells vertically?,colspan,merge,rowspan,cellmerge,C,2024-01-01T00:00:00Z
+Which tag adds a caption to a table?,<caption>,<title>,<label>,<desc>,A,2024-01-01T00:00:00Z
+Which attribute is used to define the width of an HTML element?,width,size,length,extent,A,2024-01-01T00:00:00Z
+Which meta tag controls how a page is displayed on mobile devices?,name=mobile,name=viewport,name=screen,name=responsive,B,2024-01-01T00:00:00Z
+Which HTML element defines the main content unique to a document?,<content>,<body>,<main>,<section>,C,2024-01-01T00:00:00Z
+Which HTML5 element represents the progress of a task?,<status>,<progress>,<bar>,<load>,B,2024-01-01T00:00:00Z
+Which HTML5 element represents a scalar measurement within a known range?,<range>,<scale>,<measure>,<meter>,D,2024-01-01T00:00:00Z
+Which script attribute tells the browser to execute the script after parsing?,async,late,defer,onload,C,2024-01-01T00:00:00Z

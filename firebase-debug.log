@@ -1,0 +1,55 @@
+[debug] [2026-04-28T13:34:28.455Z] ----------------------------------------------------------------------
+[debug] [2026-04-28T13:34:28.484Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\DELL\resultpilot\node_modules\firebase-tools\lib\bin\firebase.js emulators:exec --only firestore node -e " console.log firestore rules loaded \
+[debug] [2026-04-28T13:34:28.488Z] CLI Version:   15.15.0
+[debug] [2026-04-28T13:34:28.488Z] Platform:      win32
+[debug] [2026-04-28T13:34:28.489Z] Node Version:  v22.15.0
+[debug] [2026-04-28T13:34:28.491Z] Time:          Tue Apr 28 2026 14:34:28 GMT+0100 (West Africa Standard Time)
+[debug] [2026-04-28T13:34:28.492Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-04-28T13:34:28.509Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[error] 
+[error] Error: Too many arguments. Run firebase help emulators:exec for usage instructions
+[debug] [2026-04-28T13:35:08.572Z] ----------------------------------------------------------------------
+[debug] [2026-04-28T13:35:08.592Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\DELL\resultpilot\node_modules\firebase-tools\lib\bin\firebase.js emulators:exec --only firestore node -e console.log("firestore rules loaded")
+[debug] [2026-04-28T13:35:08.594Z] CLI Version:   15.15.0
+[debug] [2026-04-28T13:35:08.594Z] Platform:      win32
+[debug] [2026-04-28T13:35:08.595Z] Node Version:  v22.15.0
+[debug] [2026-04-28T13:35:08.598Z] Time:          Tue Apr 28 2026 14:35:08 GMT+0100 (West Africa Standard Time)
+[debug] [2026-04-28T13:35:08.599Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-04-28T13:35:08.609Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[error] 
+[error] Error: Too many arguments. Run firebase help emulators:exec for usage instructions
+[debug] [2026-04-28T13:36:36.149Z] ----------------------------------------------------------------------
+[debug] [2026-04-28T13:36:36.175Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\DELL\resultpilot\node_modules\firebase-tools\lib\bin\firebase.js emulators:exec --only firestore node -e " console.log firestore rules loaded \
+[debug] [2026-04-28T13:36:36.178Z] CLI Version:   15.15.0
+[debug] [2026-04-28T13:36:36.178Z] Platform:      win32
+[debug] [2026-04-28T13:36:36.179Z] Node Version:  v22.15.0
+[debug] [2026-04-28T13:36:36.180Z] Time:          Tue Apr 28 2026 14:36:36 GMT+0100 (West Africa Standard Time)
+[debug] [2026-04-28T13:36:36.181Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-04-28T13:36:36.193Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[error] 
+[error] Error: Too many arguments. Run firebase help emulators:exec for usage instructions
+[debug] [2026-04-28T13:37:55.333Z] ----------------------------------------------------------------------
+[debug] [2026-04-28T13:37:55.350Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\DELL\resultpilot\node_modules\firebase-tools\lib\bin\firebase.js emulators:exec --only firestore node
+[debug] [2026-04-28T13:37:55.351Z] CLI Version:   15.15.0
+[debug] [2026-04-28T13:37:55.352Z] Platform:      win32
+[debug] [2026-04-28T13:37:55.352Z] Node Version:  v22.15.0
+[debug] [2026-04-28T13:37:55.354Z] Time:          Tue Apr 28 2026 14:37:55 GMT+0100 (West Africa Standard Time)
+[debug] [2026-04-28T13:37:55.354Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-04-28T13:37:55.365Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-04-28T13:38:07.823Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-04-28T13:38:07.828Z] > authorizing via signed-in user (ijeborjoe@gmail.com)
+[debug] [2026-04-28T13:38:09.843Z] openjdk version "17.0.14" 2025-01-21
+
+[debug] [2026-04-28T13:38:09.846Z] OpenJDK Runtime Environment Temurin-17.0.14+7 (build 17.0.14+7)
+OpenJDK 64-Bit Server VM Temurin-17.0.14+7 (build 17.0.14+7, mixed mode, sharing)
+
+[debug] [2026-04-28T13:38:10.091Z] Parsed Java major version: 17
+[debug] [2026-04-28T13:38:10.130Z] Could not find VSCode notification endpoint: FetchError: request to http://localhost:40001/vscode/notify failed, reason: . If you are not running the Firebase SQL Connect VSCode extension, this is expected and not an issue.
+[info] i  emulators: Shutting down emulators. {"metadata":{"emulator":{"name":"hub"},"message":"Shutting down emulators."}}
+[debug] [2026-04-28T13:38:10.151Z] Could not find VSCode notification endpoint: FetchError: request to http://localhost:40001/vscode/notify failed, reason: . If you are not running the Firebase SQL Connect VSCode extension, this is expected and not an issue.
+[error] 
+[error] Error: firebase-tools no longer supports Java version before 21. Please install a JDK at version 21 or above to get a compatible runtime.

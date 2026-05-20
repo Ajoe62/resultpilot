@@ -1,0 +1,133 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    match /admins/{adminId} {
+      allow read: if isSignedIn() && request.auth.uid == adminId;
+      allow write: if false;
+    }
+
+    match /schools/{schoolId} {
+      allow read: if isAdmin() || resource.data.isActive == true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /classes/{classId} {
+      allow read: if isAdmin() || resource.data.isActive == true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /students/{studentId} {
+      allow read: if isAdmin() || resource.data.isActive == true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /exams/{examId} {
+      allow read: if isAdmin() || resource.data.isActive == true;
+      allow create, update, delete: if isAdmin();
+
+      match /questions/{questionId} {
+        allow read: if isAdmin()
+          || get(/databases/$(database)/documents/exams/$(examId)).data.isActive == true;
+        allow create, update, delete: if isAdmin();
+      }
+    }
+
+    match /examSessions/{sessionId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /results/{resultId} {
+      allow create: if isValidClientResultCreate();
+      allow read, update, delete: if isAdmin();
+    }
+
+    function isValidClientResultCreate() {
+      let data = request.resource.data;
+
+      return request.auth == null
+        && data.keys().hasOnly([
+          "studentName",
+          "studentId",
+          "admissionNumber",
+          "class",
+          "classId",
+          "school",
+          "schoolId",
+          "subject",
+          "academicSession",
+          "term",
+          "examId",
+          "examTitle",
+          "score",
+          "total",
+          "percentage",
+          "timeTaken",
+          "passed",
+          "answers",
+          "submittedAt",
+          "submittedAtMs"
+        ])
+        && data.studentName is string
+        && data.studentName.size() >= 2
+        && data.studentName.size() <= 120
+        && data.studentId is string
+        && data.studentId.size() <= 80
+        && data.admissionNumber is string
+        && data.admissionNumber.size() <= 80
+        && data.class is string
+        && data.class.size() >= 1
+        && data.class.size() <= 40
+        && data.classId is string
+        && data.classId.size() >= 1
+        && data.classId.size() <= 80
+        && data.school is string
+        && data.school.size() >= 2
+        && data.school.size() <= 120
+        && data.schoolId is string
+        && data.schoolId.size() >= 1
+        && data.schoolId.size() <= 80
+        && data.subject is string
+        && data.subject.size() >= 1
+        && data.subject.size() <= 80
+        && data.academicSession is string
+        && data.academicSession.size() >= 1
+        && data.academicSession.size() <= 40
+        && data.term is string
+        && data.term.size() >= 1
+        && data.term.size() <= 40
+        && data.examId is string
+        && data.examId.size() > 0
+        && data.examTitle is string
+        && data.examTitle.size() >= 1
+        && data.examTitle.size() <= 120
+        && data.score is int
+        && data.total is int
+        && data.percentage is int
+        && data.timeTaken is int
+        && data.passed is bool
+        && data.score >= 0
+        && data.total >= 1
+        && data.total <= 300
+        && data.score <= data.total
+        && data.percentage >= 0
+        && data.percentage <= 100
+        && data.timeTaken >= 0
+        && data.timeTaken <= 10800
+        && data.answers is list
+        && data.answers.size() == data.total
+        && data.submittedAt == request.time
+        && data.submittedAtMs is int;
+    }
+  }
+}

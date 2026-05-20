@@ -1,0 +1,16 @@
+{
+  "name": "resultpilot-functions",
+  "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "serve": "npx firebase-tools emulators:start --only functions",
+    "deploy": "npx firebase-tools deploy --only functions"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^5.1.1"
+  }
+}

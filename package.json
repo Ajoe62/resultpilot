@@ -1,0 +1,30 @@
+{
+  "name": "resultpilot",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "node --test",
+    "preview": "vite preview",
+    "questions:import": "node scripts/import-questions.mjs",
+    "firebase:deploy": "npx firebase-tools deploy --only firestore,hosting",
+    "firebase:deploy:functions": "npx firebase-tools deploy --only functions",
+    "firebase:emulators": "npx firebase-tools emulators:start --only auth,firestore,hosting",
+    "firebase:emulators:functions": "npx firebase-tools emulators:start --only auth,functions,firestore,hosting"
+  },
+  "dependencies": {
+    "csv-parse": "^6.2.1",
+    "firebase": "^12.13.0",
+    "firebase-admin": "^13.8.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.4.1",
+    "firebase-tools": "^15.15.0",
+    "vite": "^5.4.19"
+  }
+}
