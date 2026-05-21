@@ -1,0 +1,21 @@
+questionText,optionA,optionB,optionC,optionD,correctAnswer
+What does AI stand for?,Automated Interface,Artificial Intelligence,Advanced Integration,Automated Information,B
+What is a prompt in AI?,A computer error,An input or instruction given to an AI model,A type of programming language,A hardware component,B
+What is a chatbot?,A robot that cleans,An AI program that simulates conversation,A type of computer virus,A coding language,B
+Which of these is an example of a popular AI chatbot?,Google Chrome,ChatGPT,Microsoft Word,Visual Studio Code,B
+"What does it mean to give an AI model ""context""?",To confuse the AI,To provide background information to improve its response,To delete a conversation,To restart the AI,B
+What is prompt engineering?,Building physical robots,Designing better inputs to get better AI outputs,Writing code for games,Setting up computer networks,B
+Which type of prompt asks the AI to behave like a specific person or role?,Zero-shot prompt,Role prompt,Chain prompt,Negative prompt,B
+"What is a ""zero-shot"" prompt?",A prompt with no internet,A prompt that gives the AI no examples before asking a question,A prompt that deletes responses,A prompt written in code,B
+"What is a ""few-shot"" prompt?",A prompt sent multiple times,A prompt that includes a few examples to guide the AI,A short one-word prompt,A broken prompt,B
+Which of these makes a prompt more effective?,Using vague language,Being very specific and clear about what you want,Writing in all caps,Making it as short as possible,B
+"What does ""AI hallucination"" mean?",When AI draws pictures,When AI generates confident but incorrect information,When AI crashes,When AI runs too slowly,B
+What is a large language model (LLM)?,A very large dictionary,An AI trained on massive amounts of text to understand and generate language,A programming language,A type of computer chip,B
+Which of these is an example of a large language model?,Google Chrome,GPT-4,Windows 11,Python,B
+What is the best way to fix a bad AI response?,Close the app,Rephrase or refine your prompt,Restart your computer,Delete the AI,B
+"What does ""AI-generated content"" mean?",Content written by a programmer,Content created by an AI model,Content downloaded from the internet,Content deleted by an AI,B
+Which of these is an example of AI in everyday life?,A printed book,A voice assistant like Siri or Alexa,A wooden pencil,A physical calendar,B
+"What is the purpose of giving an AI a ""tone"" instruction in a prompt?",To change the AI's language,"To tell the AI how to sound — formal, casual, funny, etc.",To make the AI faster,To limit the AI's response length,B
+"What does ""machine learning"" mean in AI?",Teaching robots to walk,Training a computer to learn from data and improve over time,Programming a game,Building a website,B
+Which of these is a good example of a clear prompt?,Tell me something,Write a 3-sentence summary of photosynthesis for a 10-year-old,Explain everything,Write stuff,B
+"What should you do if an AI gives you a response that is too long?",Accept it as is,"Add ""be concise"" or specify a word/sentence limit in your prompt",Copy and paste it anyway,Ask a different AI,B

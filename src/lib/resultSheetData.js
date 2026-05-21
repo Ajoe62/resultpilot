@@ -23,8 +23,7 @@ export function getResultGrade(percentage) {
   if (score >= 70) return "A";
   if (score >= 60) return "B";
   if (score >= 50) return "C";
-  if (score >= 45) return "D";
-  if (score >= 40) return "E";
+  if (score >= 40) return "D";
   return "F";
 }
 
@@ -34,9 +33,8 @@ export function getResultRemark(percentage) {
   if (score >= 70) return "Excellent";
   if (score >= 60) return "Very Good";
   if (score >= 50) return "Good";
-  if (score >= 45) return "Fair";
   if (score >= 40) return "Pass";
-  return "Needs Improvement";
+  return "Fail";
 }
 
 export function formatResultDate(result) {

@@ -1,0 +1,21 @@
+questionText,optionA,optionB,optionC,optionD,correctAnswer
+Which input type creates a single-line text box?,type=text,type=box,type=input,type=field,A
+Which tag creates a multi-line text input?,input type=textarea,<textarea>,<textbox>,<multiline>,B
+Which HTML attribute is used to define inline styles?,style,css,class,format,A
+Which attribute assigns a unique identifier to an element?,name,id,class,key,B
+Which attribute assigns a reusable class name to an element?,id,name,class,type,C
+What is the correct HTML element for inserting a line break?,<lb>,<break>,<br>,<newline>,C
+Which tag wraps the visible content of a web page?,<content>,<main>,<body>,<section>,C
+Which HTML5 tag defines navigation links?,<nav>,<navigate>,<menu>,<links>,A
+Which HTML5 tag defines a section of a document?,<div>,<section>,<article>,<aside>,B
+Which HTML5 element is used for self-contained content like a blog post?,<section>,<div>,<article>,<content>,C
+Which HTML5 tag defines content tangentially related to the main content?,<aside>,<sidebar>,<extra>,<note>,A
+Which HTML5 tag defines a header for a document or section?,<top>,<head>,<header>,<hgroup>,C
+Which HTML5 element defines a footer for a document or section?,<bottom>,<footer>,<end>,<foot>,B
+Which HTML5 element is used to embed video content?,<video>,<media>,<movie>,<embed>,A
+Which HTML5 element is used to embed audio content?,<sound>,<audio>,<music>,<media>,B
+Which tag is used to define a section of preformatted text?,<pre>,<code>,<format>,<text>,A
+What does the code tag represent?,Bold code text,A block of computer code,A comment,An inline input,B
+Which tag is used to display a definition term in a description list?,<dt>,<dd>,<dl>,<def>,A
+Which tag is used for a description/definition in a description list?,<dd>,<dt>,<dl>,<desc>,A
+Which HTML element represents a caption for a figure element?,<caption>,<figcaption>,<label>,<desc>,B

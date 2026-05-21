@@ -7,6 +7,11 @@ import { httpsCallable } from "firebase/functions";
 import { createContext, useContext, useEffect, useState } from "react";
 import { usesFunctionExamFlow } from "../lib/examMode";
 import { cloudFunctions, db } from "../lib/firebase";
+import {
+  DEFAULT_ASSESSMENT_TYPE,
+  getAssessmentMaxScore,
+  normalizeAssessmentType,
+} from "../lib/assessmentTypes";
 
 const STORAGE_KEY = "resultpilot.session";
 const ExamSessionContext = createContext(null);
@@ -115,6 +120,12 @@ export function ExamSessionProvider({ children }) {
       const percentage = total ? Math.round((score / total) * 100) : 0;
       const timeTaken = Math.round((submittedAtMs - session.startedAt) / 1000);
       const passed = percentage >= session.exam.passmark;
+      const assessmentType = normalizeAssessmentType(
+        session.exam.assessmentType || DEFAULT_ASSESSMENT_TYPE,
+      );
+      const assessmentMaxScore = Number(
+        session.exam.assessmentMaxScore || getAssessmentMaxScore(assessmentType),
+      );
 
       result = {
         id: session.sessionId,
@@ -130,6 +141,8 @@ export function ExamSessionProvider({ children }) {
         term: session.exam.term || "Unspecified Term",
         examId: session.exam.id,
         examTitle: session.exam.title,
+        assessmentType,
+        assessmentMaxScore,
         score,
         total,
         percentage,
@@ -157,6 +170,8 @@ export function ExamSessionProvider({ children }) {
         term: result.term,
         examId: result.examId,
         examTitle: result.examTitle,
+        assessmentType: result.assessmentType,
+        assessmentMaxScore: result.assessmentMaxScore,
         score: result.score,
         total: result.total,
         percentage: result.percentage,

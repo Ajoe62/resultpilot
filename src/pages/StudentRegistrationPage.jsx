@@ -2,7 +2,6 @@ import { httpsCallable } from "firebase/functions";
 import {
   collection,
   getDocs,
-  onSnapshot,
   orderBy,
   query,
   where,
@@ -32,65 +31,72 @@ export default function StudentRegistrationPage() {
     pin: "",
   });
   const [subjects, setSubjects] = useState([]);
+  const [activeExams, setActiveExams] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const unsubscribeSchools = onSnapshot(
-      query(collection(db, "schools"), where("isActive", "==", true)),
-      (snapshot) => {
+    let active = true;
+
+    async function loadActiveSetupData() {
+      try {
+        const [schoolsSnapshot, classesSnapshot, studentsSnapshot, examsSnapshot] =
+          await Promise.all([
+            getDocs(query(collection(db, "schools"), where("isActive", "==", true))),
+            getDocs(query(collection(db, "classes"), where("isActive", "==", true))),
+            getDocs(query(collection(db, "students"), where("isActive", "==", true))),
+            getDocs(query(collection(db, "exams"), where("isActive", "==", true))),
+          ]);
+
+        if (!active) {
+          return;
+        }
+
         setSchools(
-          snapshot.docs
+          schoolsSnapshot.docs
             .map((document) => ({ id: document.id, ...document.data() }))
             .sort((first, second) => first.name.localeCompare(second.name)),
         );
-      },
-    );
 
-    const unsubscribeClasses = onSnapshot(
-      query(collection(db, "classes"), where("isActive", "==", true)),
-      (snapshot) => {
         setClasses(
-          snapshot.docs
+          classesSnapshot.docs
             .map((document) => ({ id: document.id, ...document.data() }))
             .sort((first, second) => first.name.localeCompare(second.name)),
         );
-      },
-    );
 
-    const unsubscribeStudents = onSnapshot(
-      query(collection(db, "students"), where("isActive", "==", true)),
-      (snapshot) => {
         setStudents(
-          snapshot.docs
+          studentsSnapshot.docs
             .map((document) => ({ id: document.id, ...document.data() }))
             .sort((first, second) => first.fullName.localeCompare(second.fullName)),
         );
-      },
-    );
 
-    const unsubscribeSubjects = onSnapshot(
-      query(collection(db, "exams"), where("isActive", "==", true)),
-      (snapshot) => {
+        const exams = examsSnapshot.docs.map((document) => ({
+          id: document.id,
+          ...document.data(),
+        }));
         const uniqueSubjects = [...new Set(
-          snapshot.docs
-            .map((document) => document.data()?.subject)
+          exams
+            .map((exam) => exam.subject)
             .filter((subject) => typeof subject === "string" && subject.trim()),
         )];
 
+        setActiveExams(exams);
         setSubjects(uniqueSubjects);
         setForm((current) => ({
           ...current,
           subject: current.subject || uniqueSubjects[0] || "",
         }));
-      },
-    );
+      } catch (setupError) {
+        if (active) {
+          setError(`Unable to load active exam setup: ${setupError.message}`);
+        }
+      }
+    }
+
+    loadActiveSetupData();
 
     return () => {
-      unsubscribeSchools();
-      unsubscribeClasses();
-      unsubscribeStudents();
-      unsubscribeSubjects();
+      active = false;
     };
   }, []);
 
@@ -194,15 +200,14 @@ export default function StudentRegistrationPage() {
         return;
       }
 
-      const examQuery = query(
-        collection(db, "exams"),
-        where("subject", "==", form.subject),
-        where("pin", "==", form.pin.trim()),
-        where("isActive", "==", true),
+      const matchingExams = activeExams.filter(
+        (exam) =>
+          exam.subject === form.subject &&
+          String(exam.pin || "").trim() === pin &&
+          exam.isActive === true,
       );
-      const examSnapshot = await getDocs(examQuery);
 
-      if (examSnapshot.empty) {
+      if (!matchingExams.length) {
         setError(
           "No active exam matches that subject and access PIN. " +
           "Verify the subject and PIN exactly, or ask your tutor if the exam is active.",
@@ -210,18 +215,17 @@ export default function StudentRegistrationPage() {
         return;
       }
 
-      if (examSnapshot.docs.length > 1) {
+      if (matchingExams.length > 1) {
         setError(
           "Multiple active exams match this subject and PIN. Contact the tutor before continuing.",
         );
         return;
       }
 
-      const examDoc = examSnapshot.docs[0];
-      const examData = examDoc.data();
+      const examData = matchingExams[0];
       const questionsSnapshot = await getDocs(
         query(
-          collection(db, "exams", examDoc.id, "questions"),
+          collection(db, "exams", examData.id, "questions"),
           orderBy("createdAt", "asc"),
         ),
       );
@@ -254,8 +258,9 @@ export default function StudentRegistrationPage() {
           schoolName,
         },
         exam: {
-          id: examDoc.id,
           ...examData,
+          assessmentType: examData.assessmentType || "exam",
+          assessmentMaxScore: Number(examData.assessmentMaxScore || 60),
         },
         questions: selectedQuestions,
         answers: {},

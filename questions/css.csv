@@ -1,0 +1,21 @@
+questionText,optionA,optionB,optionC,optionD,correctAnswer
+What does CSS stand for?,Colorful Style Sheets,Cascading Style Sheets,Computer Style Syntax,Creative Styling System,B
+Which HTML attribute is used to apply inline CSS?,style,class,css,format,A
+Which symbol is used to select an element by its ID in CSS?,.,#,@,*,B
+Which symbol is used to select an element by its class in CSS?,#,@,.,*,C
+Which property is used to change the text color in CSS?,font-color,text-color,color,foreground,C
+Which property sets the background color of an element?,bg-color,background-color,color-background,fill,B
+Which property controls the font size?,text-size,font-size,size,letter-size,B
+Which CSS property is used to make text bold?,font-weight,font-style,text-bold,bold,A
+Which value of font-style makes text italic?,bold,oblique,italic,slant,C
+Which property sets the space inside an element's border?,margin,padding,spacing,border,B
+Which property sets the space outside an element's border?,padding,margin,gap,outline,B
+Which property is used to set the width of an element?,size,width,w,element-width,B
+Which property is used to set the height of an element?,size,height,h,element-height,B
+Which CSS property controls the border of an element?,outline,border,edge,frame,B
+How do you add a comment in CSS?,// comment,<!-- comment -->,/* comment */,## comment,C
+Which tag is used to link an external CSS file in HTML?,<css>,<style>,<link>,<script>,C
+Which property is used to change the font family?,font-name,font-family,typeface,text-font,B
+Which CSS property aligns text horizontally?,text-align,align,horizontal-align,justify,A
+Which display value makes an element a block-level element?,inline,block,flex,none,B
+Which property hides an element but keeps its space on the page?,display:none,visibility:hidden,opacity:0,hidden:true,B

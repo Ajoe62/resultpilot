@@ -1,0 +1,21 @@
+questionText,optionA,optionB,optionC,optionD,correctAnswer
+What is Git?,A programming language,A version control system,A code editor,A web browser,B
+What is GitHub?,A version control system,A cloud platform for hosting Git repositories,A code compiler,A terminal emulator,B
+Which command initializes a new Git repository?,git start,git create,git init,git new,C
+Which command stages all changes for a commit?,git stage .,git add .,git commit -a,git push all,B
+Which command saves staged changes to the local repository?,git save,git push,git commit,git store,C
+Which flag adds a message to a Git commit?,git commit -m,git commit -msg,git commit --note,git commit -c,A
+Which command shows the current status of the repository?,git log,git status,git info,git check,B
+Which command uploads commits to a remote repository?,git pull,git fetch,git push,git send,C
+Which command downloads changes from a remote repository?,git push,git pull,git fetch,git clone,B
+Which command copies a remote repository to your local machine?,git copy,git pull,git clone,git init,C
+What is a branch in Git?,A backup of the repository,A separate line of development,A commit message,A remote server,B
+Which command creates a new branch?,git branch new-branch,git new branch,git create branch,git start branch,A
+Which command switches to a different branch?,git switch,git checkout,git go,git change,B
+Which command merges one branch into another?,git join,git combine,git merge,git fuse,C
+What is the default branch name in most new Git repositories?,dev,master,main,root,C
+Which command shows the commit history?,git history,git log,git show,git commits,B
+What is a commit in Git?,A file upload,A snapshot of changes saved to the repo,A branch merge,A remote push,B
+What file tells Git which files to ignore?,gitignore,.gitignore,ignore.git,.git-ignore,B
+What does README.md typically contain?,Git commands,Project description and instructions,A list of commits,Branch names,B
+What is a pull request on GitHub?,A command to download code,A request to merge changes from one branch into another,A way to delete a branch,A GitHub notification,B

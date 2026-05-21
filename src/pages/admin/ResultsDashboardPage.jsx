@@ -1,204 +1,293 @@
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
-import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+} from "firebase/firestore";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ASSESSMENT_TYPES,
+  DEFAULT_ASSESSMENT_TYPE,
+  getAssessmentMaxScore,
+  normalizeAssessmentType,
+} from "../../lib/assessmentTypes";
 import { db } from "../../lib/firebase";
 import {
-  exportResultsToGoogleSheets,
-  hasGoogleSheetsConfig,
-} from "../../lib/googleSheets";
-import {
   downloadTermResultDoc,
-  downloadResultDoc,
   printTermResultPdf,
-  printResultPdf,
 } from "../../lib/resultExports";
+import { buildTermResultModel } from "../../lib/termResultData";
 import {
   buildCsv,
   downloadTextFile,
   formatDateValue,
-  normalizeText,
 } from "../../lib/utils";
 
+function getStudentLabel(student) {
+  return `${student.fullName || "Unnamed Student"}${
+    student.admissionNumber ? ` (${student.admissionNumber})` : ""
+  }`;
+}
+
+function getStudentKey(student) {
+  return student.id || student.studentId || student.fullName || "";
+}
+
+function createSourceResult(student, filters) {
+  return {
+    studentId: student.id || student.studentId || "",
+    studentName: student.fullName || student.studentName || "",
+    admissionNumber: student.admissionNumber || "",
+    schoolId: student.schoolId || filters.schoolId || "",
+    school: student.schoolName || student.school || "",
+    classId: student.classId || "",
+    class: student.className || student.class || "",
+    academicSession: filters.academicSession,
+    term: filters.term,
+  };
+}
+
+function getScoreDisplay(assessment) {
+  return assessment?.hasScore ? assessment.score : "-";
+}
+
 export default function ResultsDashboardPage() {
+  const [schools, setSchools] = useState([]);
+  const [students, setStudents] = useState([]);
   const [results, setResults] = useState([]);
-  const [exportingSheets, setExportingSheets] = useState(false);
-  const [sheetsStatus, setSheetsStatus] = useState("");
-  const [resultExportStatus, setResultExportStatus] = useState("");
+  const [manualScores, setManualScores] = useState([]);
+  const [status, setStatus] = useState("");
   const [filters, setFilters] = useState({
-    search: "",
-    subject: "All",
-    academicSession: "All",
-    term: "All",
-    school: "",
-    fromDate: "",
-    toDate: "",
+    schoolId: "",
+    studentId: "",
+    academicSession: "",
+    term: "",
+  });
+  const [manualForm, setManualForm] = useState({
+    subject: "",
+    assessmentType: DEFAULT_ASSESSMENT_TYPE,
+    score: "",
+    note: "",
   });
 
-  const deferredSearch = useDeferredValue(filters.search);
+  useEffect(() => {
+    const unsubscribes = [
+      onSnapshot(query(collection(db, "schools"), orderBy("name", "asc")), (snapshot) => {
+        setSchools(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
+      }),
+      onSnapshot(query(collection(db, "students"), orderBy("fullName", "asc")), (snapshot) => {
+        setStudents(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
+      }),
+      onSnapshot(query(collection(db, "results"), orderBy("submittedAt", "desc")), (snapshot) => {
+        setResults(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
+      }),
+      onSnapshot(query(collection(db, "manualScores"), orderBy("createdAt", "desc")), (snapshot) => {
+        setManualScores(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
+      }),
+    ];
+
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
+  }, []);
+
+  const schoolOptions = useMemo(
+    () => schools.filter((school) => school.isActive !== false),
+    [schools],
+  );
+  const studentOptions = useMemo(
+    () =>
+      students.filter(
+        (student) =>
+          student.isActive !== false &&
+          (!filters.schoolId || student.schoolId === filters.schoolId),
+      ),
+    [filters.schoolId, students],
+  );
+  const selectedStudent = studentOptions.find(
+    (student) => getStudentKey(student) === filters.studentId,
+  );
+
+  const studentHistory = useMemo(() => {
+    if (!selectedStudent) return [];
+    const key = selectedStudent.id || "";
+    const name = selectedStudent.fullName || "";
+
+    return [
+      ...results.filter(
+        (result) =>
+          (key && result.studentId === key) ||
+          (!key && result.studentName === name),
+      ),
+      ...manualScores.filter(
+        (score) =>
+          (key && score.studentId === key) ||
+          (!key && score.studentName === name),
+      ),
+    ];
+  }, [manualScores, results, selectedStudent]);
+
   const academicSessions = useMemo(
-    () => [
-      "All",
-      ...new Set(results.map((result) => result.academicSession).filter(Boolean)),
-    ],
-    [results],
+    () => [...new Set(studentHistory.map((item) => item.academicSession).filter(Boolean))],
+    [studentHistory],
   );
   const terms = useMemo(
-    () => [
-      "All",
-      ...new Set(results.map((result) => result.term).filter(Boolean)),
-    ],
-    [results],
+    () => [...new Set(studentHistory.map((item) => item.term).filter(Boolean))],
+    [studentHistory],
   );
 
   useEffect(() => {
-    const resultsQuery = query(
-      collection(db, "results"),
-      orderBy("submittedAt", "desc"),
-    );
-    const unsubscribe = onSnapshot(resultsQuery, (snapshot) => {
-      setResults(
-        snapshot.docs.map((document) => ({
-          id: document.id,
-          ...document.data(),
-        })),
+    setFilters((current) => ({
+      ...current,
+      schoolId: current.schoolId || schoolOptions[0]?.id || "",
+    }));
+  }, [schoolOptions]);
+
+  useEffect(() => {
+    setFilters((current) => {
+      const validStudent = studentOptions.some(
+        (student) => getStudentKey(student) === current.studentId,
       );
+
+      return {
+        ...current,
+        studentId: validStudent ? current.studentId : studentOptions[0]?.id || "",
+      };
+    });
+  }, [studentOptions]);
+
+  useEffect(() => {
+    setFilters((current) => ({
+      ...current,
+      academicSession:
+        current.academicSession && academicSessions.includes(current.academicSession)
+          ? current.academicSession
+          : academicSessions[0] || "",
+      term:
+        current.term && terms.includes(current.term)
+          ? current.term
+          : terms[0] || "",
+    }));
+  }, [academicSessions, terms]);
+
+  const sourceResult = selectedStudent
+    ? createSourceResult(selectedStudent, filters)
+    : null;
+  const model = sourceResult
+    ? buildTermResultModel(sourceResult, results, manualScores)
+    : null;
+  const matchingManualScores = manualScores.filter(
+    (score) =>
+      sourceResult &&
+      (score.studentId || score.studentName) ===
+        (sourceResult.studentId || sourceResult.studentName) &&
+      (score.schoolId || score.school) === (sourceResult.schoolId || sourceResult.school) &&
+      score.academicSession === sourceResult.academicSession &&
+      score.term === sourceResult.term,
+  );
+
+  const updateFilter = (name, value) => {
+    setStatus("");
+    setFilters((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "schoolId" ? { studentId: "", academicSession: "", term: "" } : {}),
+      ...(name === "studentId" ? { academicSession: "", term: "" } : {}),
+    }));
+  };
+
+  const saveManualScore = async (event) => {
+    event.preventDefault();
+    setStatus("");
+
+    if (!sourceResult) {
+      setStatus("Select a school, student, session, and term before adding a manual score.");
+      return;
+    }
+
+    const subject = manualForm.subject.trim();
+    const assessmentType = normalizeAssessmentType(manualForm.assessmentType);
+    const score = Number(manualForm.score);
+    const maxScore = getAssessmentMaxScore(assessmentType);
+
+    if (!subject) {
+      setStatus("Enter a subject for the manual score.");
+      return;
+    }
+
+    if (!Number.isFinite(score) || score < 0) {
+      setStatus("Manual score must be zero or higher.");
+      return;
+    }
+
+    await addDoc(collection(db, "manualScores"), {
+      ...sourceResult,
+      subject,
+      assessmentType,
+      score: Math.min(score, maxScore),
+      maxScore,
+      note: manualForm.note.trim(),
+      createdAt: serverTimestamp(),
     });
 
-    return unsubscribe;
-  }, []);
-
-  const filteredResults = results.filter((result) => {
-    const matchesSearch = normalizeText(result.studentName || "").includes(
-      normalizeText(deferredSearch),
-    );
-    const matchesSubject =
-      filters.subject === "All" || result.subject === filters.subject;
-    const matchesAcademicSession =
-      filters.academicSession === "All" ||
-      result.academicSession === filters.academicSession;
-    const matchesTerm = filters.term === "All" || result.term === filters.term;
-    const matchesSchool = normalizeText(result.school || "").includes(
-      normalizeText(filters.school),
-    );
-
-    const submittedDate =
-      typeof result.submittedAt?.toDate === "function"
-        ? result.submittedAt.toDate()
-        : null;
-
-    const matchesFrom =
-      !filters.fromDate ||
-      (submittedDate && submittedDate >= new Date(filters.fromDate));
-    const matchesTo =
-      !filters.toDate ||
-      (submittedDate &&
-        submittedDate <= new Date(`${filters.toDate}T23:59:59`));
-
-    return (
-      matchesSearch &&
-      matchesSubject &&
-      matchesAcademicSession &&
-      matchesTerm &&
-      matchesSchool &&
-      matchesFrom &&
-      matchesTo
-    );
-  });
+    setManualForm((current) => ({ ...current, subject: "", score: "", note: "" }));
+    setStatus("Manual score saved.");
+  };
 
   const exportCsv = () => {
+    if (!model) return;
+
     const rows = [
       [
-        "Name",
+        "Student",
         "Admission Number",
         "School",
-        "School ID",
         "Class",
-        "Class ID",
-        "Student ID",
-        "Subject",
-        "Academic Session",
+        "Session",
         "Term",
-        "Score",
+        "Subject",
+        "First Assessment",
+        "Second Assessment",
+        "Exam",
+        "Total",
         "Percentage",
-        "Time Taken (s)",
-        "Passed",
-        "Date",
+        "Remark",
       ],
-      ...filteredResults.map((result) => [
-        result.studentName,
-        result.admissionNumber,
-        result.school,
-        result.schoolId,
-        result.class,
-        result.classId,
-        result.studentId,
-        result.subject,
-        result.academicSession,
-        result.term,
-        `${result.score}/${result.total}`,
-        `${result.percentage}%`,
-        result.timeTaken,
-        result.passed ? "Yes" : "No",
-        formatDateValue(result.submittedAt),
+      ...model.subjects.map((subject) => [
+        model.studentName,
+        model.admissionNumber,
+        model.school,
+        model.className,
+        model.academicSession,
+        model.term,
+        subject.subject,
+        getScoreDisplay(subject.firstAssessment),
+        getScoreDisplay(subject.secondAssessment),
+        getScoreDisplay(subject.exam),
+        `${subject.totalScore}/${subject.totalPossible}`,
+        `${subject.percentage}%`,
+        subject.remark,
       ]),
     ];
 
-    downloadTextFile("resultpilot-results.csv", buildCsv(rows), "text/csv");
+    downloadTextFile(
+      `${model.studentName}-${model.academicSession}-${model.term}-combined-result.csv`,
+      buildCsv(rows),
+      "text/csv",
+    );
   };
 
-  const exportSheets = async () => {
-    setSheetsStatus("");
-    setExportingSheets(true);
-
-    try {
-      const response = await exportResultsToGoogleSheets(filteredResults);
-      setSheetsStatus(
-        `Exported ${response.rowCount} rows across ${response.groupCount} sheet tabs.`,
-      );
-      window.open(response.spreadsheetUrl, "_blank", "noopener,noreferrer");
-    } catch (exportError) {
-      setSheetsStatus(exportError.message || "Google Sheets export failed.");
-    } finally {
-      setExportingSheets(false);
+  const handlePrintPdf = () => {
+    if (sourceResult) {
+      printTermResultPdf(sourceResult, results, manualScores);
     }
   };
 
-  const handlePrintPdf = (result) => {
-    setResultExportStatus("");
-
-    try {
-      printResultPdf(result);
-    } catch (exportError) {
-      setResultExportStatus(exportError.message || "Unable to open PDF print view.");
-    }
-  };
-
-  const handleDownloadDoc = (result) => {
-    setResultExportStatus("");
-
-    try {
-      downloadResultDoc(result);
-    } catch (exportError) {
-      setResultExportStatus(exportError.message || "Unable to download DOC result.");
-    }
-  };
-
-  const handlePrintTermPdf = (result) => {
-    setResultExportStatus("");
-
-    try {
-      printTermResultPdf(result, results);
-    } catch (exportError) {
-      setResultExportStatus(exportError.message || "Unable to open complete result print view.");
-    }
-  };
-
-  const handleDownloadTermDoc = (result) => {
-    setResultExportStatus("");
-
-    try {
-      downloadTermResultDoc(result, results);
-    } catch (exportError) {
-      setResultExportStatus(exportError.message || "Unable to download complete DOC result.");
+  const handleDownloadDoc = () => {
+    if (sourceResult) {
+      downloadTermResultDoc(sourceResult, results, manualScores);
     }
   };
 
@@ -206,60 +295,36 @@ export default function ResultsDashboardPage() {
     <section className="admin-section">
       <div className="section-heading">
         <h2>Results Dashboard</h2>
-        <p>Search, filter, and export student performance data.</p>
+        <p>Select a school, student, session, and term to build a full combined result.</p>
       </div>
 
       <div className="card filters-card">
         <div className="field-grid">
           <label className="field">
-            <span>Search Student</span>
-            <input
-              value={filters.search}
-              onChange={(event) =>
-                startTransition(() =>
-                  setFilters((current) => ({
-                    ...current,
-                    search: event.target.value,
-                  })),
-                )
-              }
-              placeholder="Search by name"
-            />
-          </label>
-
-          <label className="field">
-            <span>Subject</span>
+            <span>School</span>
             <select
-              value={filters.subject}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  subject: event.target.value,
-                }))
-              }
+              value={filters.schoolId}
+              onChange={(event) => updateFilter("schoolId", event.target.value)}
             >
-              {["All", "HTML", "CSS", "JavaScript"].map((subject) => (
-                <option key={subject} value={subject}>
-                  {subject}
+              <option value="">Select school</option>
+              {schoolOptions.map((school) => (
+                <option key={school.id} value={school.id}>
+                  {school.name}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="field">
-            <span>Academic Session</span>
+            <span>Student</span>
             <select
-              value={filters.academicSession}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  academicSession: event.target.value,
-                }))
-              }
+              value={filters.studentId}
+              onChange={(event) => updateFilter("studentId", event.target.value)}
             >
-              {academicSessions.map((academicSession) => (
-                <option key={academicSession} value={academicSession}>
-                  {academicSession}
+              <option value="">Select student</option>
+              {studentOptions.map((student) => (
+                <option key={student.id} value={student.id}>
+                  {getStudentLabel(student)}
                 </option>
               ))}
             </select>
@@ -268,16 +333,27 @@ export default function ResultsDashboardPage() {
 
         <div className="field-grid">
           <label className="field">
+            <span>Academic Session</span>
+            <select
+              value={filters.academicSession}
+              onChange={(event) => updateFilter("academicSession", event.target.value)}
+            >
+              <option value="">Select session</option>
+              {academicSessions.map((session) => (
+                <option key={session} value={session}>
+                  {session}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field">
             <span>Term</span>
             <select
               value={filters.term}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  term: event.target.value,
-                }))
-              }
+              onChange={(event) => updateFilter("term", event.target.value)}
             >
+              <option value="">Select term</option>
               {terms.map((term) => (
                 <option key={term} value={term}>
                   {term}
@@ -285,152 +361,161 @@ export default function ResultsDashboardPage() {
               ))}
             </select>
           </label>
-
-          <label className="field">
-            <span>School</span>
-            <input
-              value={filters.school}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  school: event.target.value,
-                }))
-              }
-              placeholder="Filter by school"
-            />
-          </label>
         </div>
 
-        <div className="field-grid">
-          <label className="field">
-            <span>From</span>
-            <input
-              type="date"
-              value={filters.fromDate}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  fromDate: event.target.value,
-                }))
-              }
-            />
-          </label>
-
-          <label className="field">
-            <span>To</span>
-            <input
-              type="date"
-              value={filters.toDate}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  toDate: event.target.value,
-                }))
-              }
-            />
-          </label>
+        <div className="button-row">
+          <button className="secondary-button" disabled={!model} onClick={exportCsv} type="button">
+            Export CSV
+          </button>
+          <button className="secondary-button" disabled={!model} onClick={handlePrintPdf} type="button">
+            Full PDF
+          </button>
+          <button className="primary-button" disabled={!model} onClick={handleDownloadDoc} type="button">
+            Full DOC
+          </button>
         </div>
-
-        <div className="field-grid">
-          <div className="field actions-field">
-            <span>Export</span>
-            <div className="button-row">
-              <button className="secondary-button" onClick={exportCsv} type="button">
-                Export CSV
-              </button>
-              <button
-                className="primary-button"
-                disabled={exportingSheets || !hasGoogleSheetsConfig()}
-                onClick={exportSheets}
-                type="button"
-              >
-                {exportingSheets ? "Exporting..." : "Export to Sheets"}
-              </button>
-            </div>
-          </div>
-        </div>
-        {!hasGoogleSheetsConfig() ? (
-          <p className="muted-text">
-            Add Google Sheets environment values to enable direct Sheets export.
-          </p>
-        ) : null}
-        {sheetsStatus ? <p className="muted-text">{sheetsStatus}</p> : null}
-        {resultExportStatus ? <p className="form-error">{resultExportStatus}</p> : null}
       </div>
 
+      <form className="card form-card" onSubmit={saveManualScore}>
+        <div className="section-heading">
+          <h3>Manual Score Entry</h3>
+          <p>Add scores for practicals, projects, paper tests, or offline grading.</p>
+        </div>
+        <div className="field-grid">
+          <label className="field">
+            <span>Subject</span>
+            <input
+              value={manualForm.subject}
+              onChange={(event) =>
+                setManualForm((current) => ({ ...current, subject: event.target.value }))
+              }
+              placeholder="HTML"
+            />
+          </label>
+
+          <label className="field">
+            <span>Assessment Type</span>
+            <select
+              value={manualForm.assessmentType}
+              onChange={(event) =>
+                setManualForm((current) => ({
+                  ...current,
+                  assessmentType: event.target.value,
+                  score: "",
+                }))
+              }
+            >
+              {ASSESSMENT_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label} ({type.maxScore} marks)
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="field-grid">
+          <label className="field">
+            <span>Manual Score</span>
+            <input
+              max={getAssessmentMaxScore(manualForm.assessmentType)}
+              min="0"
+              type="number"
+              value={manualForm.score}
+              onChange={(event) =>
+                setManualForm((current) => ({ ...current, score: event.target.value }))
+              }
+              placeholder={`0-${getAssessmentMaxScore(manualForm.assessmentType)}`}
+            />
+          </label>
+
+          <label className="field">
+            <span>Note</span>
+            <input
+              value={manualForm.note}
+              onChange={(event) =>
+                setManualForm((current) => ({ ...current, note: event.target.value }))
+              }
+              placeholder="Optional note"
+            />
+          </label>
+        </div>
+        {status ? <p className="muted-text">{status}</p> : null}
+        <button className="primary-button" disabled={!sourceResult} type="submit">
+          Save Manual Score
+        </button>
+      </form>
+
       <div className="card table-card">
+        <div className="section-heading">
+          <h3>Combined Term Result</h3>
+          <p>
+            {model
+              ? `${model.studentName} - ${model.academicSession} - ${model.term}`
+              : "Select a student, session, and term to view the result."}
+          </p>
+        </div>
         <div className="table-wrapper">
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Admission No.</th>
-                <th>School</th>
-                <th>Class</th>
-                <th>Session</th>
-                <th>Term</th>
                 <th>Subject</th>
-                <th>Score</th>
+                <th>First Assessment / 20</th>
+                <th>Second Assessment / 20</th>
+                <th>Exam / 60</th>
+                <th>Total / 100</th>
                 <th>%</th>
-                <th>Time</th>
-                <th>Date</th>
-                <th>Result Sheet</th>
+                <th>Remark</th>
               </tr>
             </thead>
             <tbody>
-              {filteredResults.map((result) => (
-                <tr key={result.id}>
-                  <td>{result.studentName}</td>
-                  <td>{result.admissionNumber || "-"}</td>
-                  <td>{result.school}</td>
-                  <td>{result.class}</td>
-                  <td>{result.academicSession || "-"}</td>
-                  <td>{result.term || "-"}</td>
-                  <td>{result.subject}</td>
+              {model?.subjects.map((subject) => (
+                <tr key={subject.subject}>
+                  <td>{subject.subject}</td>
+                  <td>{getScoreDisplay(subject.firstAssessment)}</td>
+                  <td>{getScoreDisplay(subject.secondAssessment)}</td>
+                  <td>{getScoreDisplay(subject.exam)}</td>
                   <td>
-                    {result.score}/{result.total}
+                    {subject.totalScore}/{subject.totalPossible}
                   </td>
-                  <td>{result.percentage}%</td>
-                  <td>{result.timeTaken}s</td>
-                  <td>{formatDateValue(result.submittedAt)}</td>
-                  <td>
-                    <div className="table-actions">
-                      <button
-                        className="secondary-button"
-                        onClick={() => handlePrintPdf(result)}
-                        type="button"
-                      >
-                        PDF
-                      </button>
-                      <button
-                        className="secondary-button"
-                        onClick={() => handleDownloadDoc(result)}
-                        type="button"
-                      >
-                        DOC
-                      </button>
-                      <button
-                        className="secondary-button"
-                        onClick={() => handlePrintTermPdf(result)}
-                        type="button"
-                      >
-                        Full PDF
-                      </button>
-                      <button
-                        className="secondary-button"
-                        onClick={() => handleDownloadTermDoc(result)}
-                        type="button"
-                      >
-                        Full DOC
-                      </button>
-                    </div>
-                  </td>
+                  <td>{subject.percentage}%</td>
+                  <td>{subject.remark}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {!filteredResults.length ? (
-            <p className="muted-text">No results match the current filters.</p>
+          {model && !model.subjects.length ? (
+            <p className="muted-text">No results found for this student, session, and term.</p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="card list-card">
+        <div className="section-heading">
+          <h3>Manual Scores In This Result</h3>
+          <p>{matchingManualScores.length} manual score entries</p>
+        </div>
+        <div className="stack-list">
+          {matchingManualScores.map((score) => (
+            <article className="stack-list__item" key={score.id}>
+              <div>
+                <strong>{score.subject}</strong>
+                <p>
+                  {ASSESSMENT_TYPES.find((type) => type.value === score.assessmentType)?.label ||
+                    "Exam"} - {score.score}/{score.maxScore || getAssessmentMaxScore(score.assessmentType)}
+                </p>
+                <small>{score.note || "No note"} - {formatDateValue(score.createdAt)}</small>
+              </div>
+              <button
+                className="danger-button"
+                onClick={() => deleteDoc(doc(db, "manualScores", score.id))}
+                type="button"
+              >
+                Delete
+              </button>
+            </article>
+          ))}
+          {!matchingManualScores.length ? (
+            <p className="muted-text">No manual scores for this selected result.</p>
           ) : null}
         </div>
       </div>

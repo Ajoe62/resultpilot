@@ -14,7 +14,7 @@ describe("result sheet data", () => {
     assert.equal(getResultGrade(60), "B");
     assert.equal(getResultGrade(50), "C");
     assert.equal(getResultGrade(45), "D");
-    assert.equal(getResultGrade(40), "E");
+    assert.equal(getResultGrade(40), "D");
     assert.equal(getResultGrade(39), "F");
   });
 

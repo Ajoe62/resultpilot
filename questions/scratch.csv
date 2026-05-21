@@ -1,0 +1,21 @@
+questionText,optionA,optionB,optionC,optionD,correctAnswer
+What is Scratch?,A text-based programming language,A visual block-based programming platform,A drawing application,A web browser,B
+What are the characters in Scratch called?,Objects,Players,Sprites,Actors,C
+What is the default sprite in Scratch?,A cat,A dog,A star,A ball,A
+"Which block category contains the ""move 10 steps"" block?",Looks,Sound,Motion,Control,C
+Which block starts a script when the green flag is clicked?,When space key pressed,When this sprite clicked,When green flag clicked,Start,C
+"Which block category contains the ""say Hello"" block?",Motion,Looks,Sound,Sensing,B
+"What does the ""repeat"" block do?",Stops the script,Runs blocks inside it multiple times,Skips to the next block,Plays a sound,B
+What is the background in a Scratch project called?,Canvas,Stage,Background,Scene,B
+Which block plays a sound in Scratch?,Make sound,Play sound until done,Broadcast sound,Start sound,B
+"What does the ""wait 1 second"" block do?",Pauses the script for 1 second,Deletes the sprite,Speeds up the sprite,Jumps to the next script,A
+"Which block category contains ""if...then"" blocks?",Motion,Operators,Control,Variables,C
+"What does the ""hide"" block do in Scratch?",Deletes the sprite,Makes the sprite invisible,Pauses the sprite,Moves sprite off stage,B
+"What does the ""show"" block do?",Shows the stage,Makes a hidden sprite visible,Opens a new sprite,Runs the script,B
+Which block makes a sprite go to a specific position?,Glide,Set x to,Go to x:y,Move steps,C
+Which block category stores data values?,Operators,Variables,Control,Data,B
+"What does ""broadcast"" do in Scratch?",Sends a message to all sprites,Plays a sound to all sprites,Copies a sprite,Deletes a sprite,A
+How do you duplicate a sprite in Scratch?,Right-click and select Duplicate,Press Ctrl+D,Drag it to the toolbar,Click the copy button,A
+Which block checks if a condition is true or false?,Repeat,If...then,Wait,Forever,B
+"What does the ""forever"" block do?",Runs the script once,Runs the blocks inside it indefinitely,Loops exactly 10 times,Stops the program,B
+Where can you find community Scratch projects?,Scratch Editor,Scratch Explore page,Sprite Library,Sound Library,B

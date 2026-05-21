@@ -1,0 +1,21 @@
+questionText,optionA,optionB,optionC,optionD,correctAnswer
+Which keyword is used to declare a variable in modern JavaScript?,var,let,dim,int,B
+Which keyword declares a constant in JavaScript?,let,var,const,fixed,C
+How do you write a comment in JavaScript?,<!-- comment -->,/* comment */,// comment,## comment,C
+Which function displays a message box in JavaScript?,print(),alert(),console(),message(),B
+Which method logs output to the browser console?,console.print(),console.log(),print.log(),log.console(),B
+Which sign is used for strict equality in JavaScript?,==,===,=,!=,B
+How do you write a function in JavaScript?,function = myFunc(){},def myFunc(){},function myFunc(){},func myFunc(){},C
+Which symbol is used for string concatenation in JavaScript?,+,&,.,*,A
+How do you create an array in JavaScript?,"array(1, 2, 3)","{1, 2, 3}","[1, 2, 3]","<1, 2, 3>",C
+How do you access the first element of an array called arr?,arr(0),arr[1],arr[0],arr.first,C
+Which keyword is used to create a loop in JavaScript?,loop,repeat,for,iterate,C
+Which method adds an item to the end of an array?,push(),add(),append(),insert(),A
+Which method removes the last item from an array?,remove(),pop(),delete(),splice(),B
+How do you check the length of an array called arr?,arr.size,arr.count,arr.length,arr.len,C
+Which operator is used for logical AND in JavaScript?,&,&&,AND,||,B
+Which operator is used for logical OR in JavaScript?,|,OR,&&,||,D
+How do you write an if statement in JavaScript?,if x > 5 then,if (x > 5){},if x > 5:,when (x > 5){},B
+Which HTML tag is used to embed JavaScript in a webpage?,<js>,<javascript>,<script>,<code>,C
+Which method converts a string to a number in JavaScript?,toNumber(),parseInt(),stringToNum(),convert(),B
+What data type is the value true or false in JavaScript?,String,Number,Boolean,Null,C

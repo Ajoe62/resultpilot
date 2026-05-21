@@ -47,6 +47,10 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /manualScores/{manualScoreId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
     match /results/{resultId} {
       allow create: if isValidClientResultCreate();
       allow read, update, delete: if isAdmin();
@@ -69,6 +73,8 @@ service cloud.firestore {
           "term",
           "examId",
           "examTitle",
+          "assessmentType",
+          "assessmentMaxScore",
           "score",
           "total",
           "percentage",
@@ -111,6 +117,9 @@ service cloud.firestore {
         && data.examTitle is string
         && data.examTitle.size() >= 1
         && data.examTitle.size() <= 120
+        && data.assessmentType in ["first_assessment", "second_assessment", "exam"]
+        && data.assessmentMaxScore is int
+        && data.assessmentMaxScore in [20, 60]
         && data.score is int
         && data.total is int
         && data.percentage is int

@@ -6,6 +6,12 @@ admin.initializeApp();
 const db = admin.firestore();
 const { FieldValue } = admin.firestore;
 const SUBMISSION_GRACE_MS = 30 * 1000;
+const ASSESSMENT_MAX_SCORES = {
+  first_assessment: 20,
+  second_assessment: 20,
+  exam: 60,
+};
+const DEFAULT_ASSESSMENT_TYPE = "exam";
 const projectId =
   process.env.GCLOUD_PROJECT ||
   process.env.GCP_PROJECT ||
@@ -14,6 +20,12 @@ const projectId =
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeAssessmentType(value) {
+  return Object.prototype.hasOwnProperty.call(ASSESSMENT_MAX_SCORES, value)
+    ? value
+    : DEFAULT_ASSESSMENT_TYPE;
 }
 
 function getCallableOptions() {
@@ -117,6 +129,10 @@ function validateExam(exam, examId) {
   const pin = cleanString(exam.pin);
   const duration = Number(exam.duration);
   const passmark = Number(exam.passmark);
+  const assessmentType = normalizeAssessmentType(exam.assessmentType);
+  const assessmentMaxScore = Number(
+    exam.assessmentMaxScore || ASSESSMENT_MAX_SCORES[assessmentType],
+  );
 
   if (!title || !subject || !pin) {
     throw new HttpsError(
@@ -147,6 +163,8 @@ function validateExam(exam, examId) {
     term,
     duration,
     passmark,
+    assessmentType,
+    assessmentMaxScore,
   };
 }
 
@@ -337,6 +355,11 @@ exports.submitExam = onCall(getCallableOptions(), async (request) => {
       term: session.exam.term || "Unspecified Term",
       examId: session.exam.id,
       examTitle: session.exam.title,
+      assessmentType: normalizeAssessmentType(session.exam.assessmentType),
+      assessmentMaxScore: Number(
+        session.exam.assessmentMaxScore ||
+          ASSESSMENT_MAX_SCORES[normalizeAssessmentType(session.exam.assessmentType)],
+      ),
       score,
       total,
       percentage,
@@ -364,6 +387,8 @@ exports.submitExam = onCall(getCallableOptions(), async (request) => {
       term: clientResult.term,
       examId: clientResult.examId,
       examTitle: clientResult.examTitle,
+      assessmentType: clientResult.assessmentType,
+      assessmentMaxScore: clientResult.assessmentMaxScore,
       score: clientResult.score,
       total: clientResult.total,
       percentage: clientResult.percentage,

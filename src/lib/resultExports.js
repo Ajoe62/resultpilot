@@ -40,8 +40,8 @@ export function printResultPdf(result) {
   }, 250);
 }
 
-export function downloadTermResultDoc(sourceResult, allResults) {
-  const html = buildTermResultSheetHtml(sourceResult, allResults);
+export function downloadTermResultDoc(sourceResult, allResults, manualScores = []) {
+  const html = buildTermResultSheetHtml(sourceResult, allResults, manualScores);
   const blob = new Blob([html], {
     type: "application/msword;charset=utf-8",
   });
@@ -56,8 +56,8 @@ export function downloadTermResultDoc(sourceResult, allResults) {
   URL.revokeObjectURL(url);
 }
 
-export function printTermResultPdf(sourceResult, allResults) {
-  const html = buildTermResultSheetHtml(sourceResult, allResults);
+export function printTermResultPdf(sourceResult, allResults, manualScores = []) {
+  const html = buildTermResultSheetHtml(sourceResult, allResults, manualScores);
   const printWindow = window.open("", "_blank", "noopener,noreferrer");
 
   if (!printWindow) {

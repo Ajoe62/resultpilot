@@ -12,6 +12,12 @@ import {
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { db } from "../../lib/firebase";
+import {
+  ASSESSMENT_TYPES,
+  DEFAULT_ASSESSMENT_TYPE,
+  getAssessmentLabel,
+  getAssessmentMaxScore,
+} from "../../lib/assessmentTypes";
 import { formatDateValue } from "../../lib/utils";
 
 const TERMS = ["First Term", "Second Term", "Third Term"];
@@ -29,6 +35,7 @@ const INITIAL_FORM = {
   duration: 30,
   pin: "",
   passmark: 50,
+  assessmentType: DEFAULT_ASSESSMENT_TYPE,
   isActive: true,
 };
 
@@ -39,6 +46,7 @@ function validateExamForm(form) {
   const term = form.term.trim();
   const duration = Number(form.duration);
   const passmark = Number(form.passmark);
+  const assessmentType = form.assessmentType;
 
   if (!title) {
     return "Exam title is required.";
@@ -54,6 +62,10 @@ function validateExamForm(form) {
 
   if (!term) {
     return "Term is required.";
+  }
+
+  if (!ASSESSMENT_TYPES.some((type) => type.value === assessmentType)) {
+    return "Assessment type is required.";
   }
 
   if (!Number.isInteger(duration) || duration < 1 || duration > 300) {
@@ -135,6 +147,8 @@ export default function ManageExamsPage() {
         duration: Number(form.duration),
         pin: form.pin.trim(),
         passmark: Number(form.passmark),
+        assessmentType: form.assessmentType,
+        assessmentMaxScore: getAssessmentMaxScore(form.assessmentType),
         isActive: form.isActive,
         isArchived: false,
         createdAt: serverTimestamp(),
@@ -144,6 +158,19 @@ export default function ManageExamsPage() {
       setError(creationError.message || "Unable to create exam.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const updateAssessmentType = async (exam, assessmentType) => {
+    setError("");
+
+    try {
+      await updateDoc(doc(db, "exams", exam.id), {
+        assessmentType,
+        assessmentMaxScore: getAssessmentMaxScore(assessmentType),
+      });
+    } catch (updateError) {
+      setError(updateError.message || "Unable to update assessment type.");
     }
   };
 
@@ -266,6 +293,22 @@ export default function ManageExamsPage() {
             </label>
           </div>
 
+          <label className="field">
+            <span>Assessment Type</span>
+            <select
+              value={form.assessmentType}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, assessmentType: event.target.value }))
+              }
+            >
+              {ASSESSMENT_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label} ({type.maxScore} marks)
+                </option>
+              ))}
+            </select>
+          </label>
+
           <div className="field-grid">
             <label className="field">
               <span>Access PIN</span>
@@ -321,11 +364,22 @@ export default function ManageExamsPage() {
                 <div>
                   <strong>{exam.title}</strong>
                   <p>
-                    {exam.subject} - {exam.academicSession || "No session"} - {exam.term || "No term"} - {exam.duration} mins - Pass {exam.passmark}%
+                    {exam.subject} - {getAssessmentLabel(exam.assessmentType)} - {exam.academicSession || "No session"} - {exam.term || "No term"} - {exam.duration} mins - Pass {exam.passmark}%
                   </p>
                   <small>Created {formatDateValue(exam.createdAt)}</small>
                 </div>
                 <div className="button-row">
+                  <select
+                    aria-label={`Assessment type for ${exam.title}`}
+                    value={exam.assessmentType || DEFAULT_ASSESSMENT_TYPE}
+                    onChange={(event) => updateAssessmentType(exam, event.target.value)}
+                  >
+                    {ASSESSMENT_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
                   <button
                     className="secondary-button"
                     onClick={() => toggleExamStatus(exam)}

@@ -37,6 +37,8 @@ describe("term result data", () => {
         ...baseResult,
         subject: "HTML",
         examTitle: "HTML Test",
+        assessmentType: "exam",
+        assessmentMaxScore: 60,
         score: 7,
         total: 10,
         percentage: 70,
@@ -46,6 +48,8 @@ describe("term result data", () => {
         ...baseResult,
         subject: "HTML",
         examTitle: "HTML Retake",
+        assessmentType: "exam",
+        assessmentMaxScore: 60,
         score: 9,
         total: 10,
         percentage: 90,
@@ -55,6 +59,8 @@ describe("term result data", () => {
         ...baseResult,
         subject: "CSS",
         examTitle: "CSS Test",
+        assessmentType: "first_assessment",
+        assessmentMaxScore: 20,
         score: 8,
         total: 10,
         percentage: 80,
@@ -63,12 +69,12 @@ describe("term result data", () => {
     ]);
 
     assert.equal(model.subjectCount, 2);
-    assert.equal(model.totalScore, 17);
-    assert.equal(model.totalPossible, 20);
-    assert.equal(model.average, 85);
-    assert.equal(model.grade, "A");
+    assert.equal(model.totalScore, 70);
+    assert.equal(model.totalPossible, 200);
+    assert.equal(model.average, 35);
+    assert.equal(model.grade, "F");
     assert.deepEqual(model.subjects.map((subject) => subject.subject), ["CSS", "HTML"]);
-    assert.equal(model.subjects.find((subject) => subject.subject === "HTML").score, 9);
+    assert.equal(model.subjects.find((subject) => subject.subject === "HTML").exam.score, 54);
   });
 
   it("escapes complete result HTML content", () => {
