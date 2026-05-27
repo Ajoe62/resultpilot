@@ -27,6 +27,10 @@ function getDefaultAcademicSession() {
   return `${currentYear}/${currentYear + 1}`;
 }
 
+function normalizeLookupKey(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
 const INITIAL_FORM = {
   title: "",
   subject: "",
@@ -41,6 +45,7 @@ const INITIAL_FORM = {
 
 function validateExamForm(form) {
   const title = form.title.trim();
+  const subject = form.subject.trim();
   const pin = form.pin.trim();
   const academicSession = form.academicSession.trim();
   const term = form.term.trim();
@@ -50,6 +55,10 @@ function validateExamForm(form) {
 
   if (!title) {
     return "Exam title is required.";
+  }
+
+  if (!subject) {
+    return "Subject is required.";
   }
 
   if (!pin) {
@@ -77,6 +86,26 @@ function validateExamForm(form) {
   }
 
   return "";
+}
+
+async function hasActiveExamConflict({ subject, pin, excludeExamId = "" }) {
+  const subjectKey = normalizeLookupKey(subject);
+  const pinKey = normalizeLookupKey(pin);
+  const conflictSnapshot = await getDocs(
+    query(collection(db, "exams"), where("isActive", "==", true)),
+  );
+
+  return conflictSnapshot.docs.some((document) => {
+    if (document.id === excludeExamId) {
+      return false;
+    }
+
+    const exam = document.data();
+    return (
+      normalizeLookupKey(exam.subjectKey || exam.subject) === subjectKey &&
+      normalizeLookupKey(exam.pinKey || exam.pin) === pinKey
+    );
+  });
 }
 
 export default function ManageExamsPage() {
@@ -123,15 +152,7 @@ export default function ManageExamsPage() {
       }
 
       if (form.isActive) {
-        const conflictQuery = query(
-          collection(db, "exams"),
-          where("subject", "==", form.subject),
-          where("pin", "==", form.pin.trim()),
-          where("isActive", "==", true),
-        );
-        const conflictSnapshot = await getDocs(conflictQuery);
-
-        if (!conflictSnapshot.empty) {
+        if (await hasActiveExamConflict(form)) {
           setError(
             "An active exam already uses that subject and PIN. Deactivate it or change the PIN.",
           );
@@ -141,11 +162,13 @@ export default function ManageExamsPage() {
 
       await addDoc(collection(db, "exams"), {
         title: form.title.trim(),
-        subject: form.subject,
+        subject: form.subject.trim(),
+        subjectKey: normalizeLookupKey(form.subject),
         academicSession: form.academicSession.trim(),
         term: form.term.trim(),
         duration: Number(form.duration),
         pin: form.pin.trim(),
+        pinKey: normalizeLookupKey(form.pin),
         passmark: Number(form.passmark),
         assessmentType: form.assessmentType,
         assessmentMaxScore: getAssessmentMaxScore(form.assessmentType),
@@ -179,18 +202,13 @@ export default function ManageExamsPage() {
 
     try {
       if (!exam.isActive) {
-        const conflictQuery = query(
-          collection(db, "exams"),
-          where("subject", "==", exam.subject),
-          where("pin", "==", exam.pin),
-          where("isActive", "==", true),
-        );
-        const conflictSnapshot = await getDocs(conflictQuery);
-        const hasConflict = conflictSnapshot.docs.some(
-          (document) => document.id !== exam.id,
-        );
-
-        if (hasConflict) {
+        if (
+          await hasActiveExamConflict({
+            subject: exam.subjectKey || exam.subject,
+            pin: exam.pinKey || exam.pin,
+            excludeExamId: exam.id,
+          })
+        ) {
           setError(
             "Another active exam already uses this subject and PIN. Resolve that conflict first.",
           );

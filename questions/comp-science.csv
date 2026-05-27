@@ -1,0 +1,21 @@
+questionText,optionA,optionB,optionC,optionD,correctAnswer
+What does CPU stand for?,Central Processing Unit,Central Program Utility,Computer Personal Unit,Central Processor Utility,A
+Which of the following is a primary function of the operating system?,Running games,Managing hardware resources and software applications,Playing music,Creating documents,B
+What is RAM?,Read-only Memory,Random Access Memory,Rapid Application Management,Remote Analog Memory,B
+Which storage device has the fastest access time?,Hard Disk Drive,Solid State Drive,USB Flash Drive,SD Card,B
+What is the purpose of a compiler?,To execute code line by line,To convert source code into machine code,To manage files,To organize data,B
+Which data structure follows the LIFO principle?,Queue,Stack,Array,Linked List,B
+What does HTTP stand for?,Hyper Text Transfer Protocol,High Transfer Text Protocol,Home Text Transfer Process,Hyperlink Text Transmission Protocol,A
+Which sorting algorithm has the worst-case time complexity of O(n²)?,Merge Sort,Quick Sort,Bubble Sort,Heap Sort,C
+What is the primary advantage of using a database?,Fast data retrieval,Organized data storage and management,Complex calculations,Easy file sharing,B
+What is the purpose of encryption?,To speed up data transmission,To compress files,To secure and protect data privacy,To reduce file size,C
+Which protocol is used for secure web communication?,HTTP,FTP,HTTPS,SMTP,C
+What is the main purpose of a firewall?,To block all internet access,To monitor and control network traffic,To speed up downloads,To increase storage,B
+Which of the following is a NoSQL database?,Oracle,MySQL,MongoDB,PostgreSQL,C
+What is an algorithm?,A type of hardware,A step-by-step procedure to solve a problem,A programming language,A type of memory,B
+Which network topology connects all devices to a central hub?,Star topology,Ring topology,Mesh topology,Bus topology,A
+What is the purpose of version control systems like Git?,To create backups of files,To track changes and manage code collaboration,To compile code,To run tests,B
+Which of the following is a characteristic of cloud computing?,Limited scalability,On-demand resource availability,Requires local servers only,Offline-only access,B
+What is artificial intelligence?,A programming language,Simulation of intelligent behavior by computers,A type of hardware,A cloud service,B
+Which layer of the OSI model handles data encryption?,Physical layer,Data Link layer,Transport layer,Application layer,D
+What is the main purpose of a Load Balancer?,To balance work distribution across servers,To encrypt data,To create backups,To manage user accounts,A

@@ -5,12 +5,12 @@ import {
   orderBy,
   query,
   where,
-} from "firebase/firestore";
+} from "firebase/firestore/lite";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useExamSession } from "../context/ExamSessionContext";
 import { usesFunctionExamFlow } from "../lib/examMode";
-import { cloudFunctions, db } from "../lib/firebase";
+import { cloudFunctions, liteDb } from "../lib/firebase";
 import { shuffleArray } from "../lib/utils";
 
 export default function StudentRegistrationPage() {
@@ -40,12 +40,38 @@ export default function StudentRegistrationPage() {
 
     async function loadActiveSetupData() {
       try {
+        if (usesFunctionExamFlow) {
+          const getStudentRegistrationSetup = httpsCallable(
+            cloudFunctions,
+            "getStudentRegistrationSetup",
+          );
+          const response = await getStudentRegistrationSetup();
+
+          if (!active) {
+            return;
+          }
+
+          const setup = response.data || {};
+          const uniqueSubjects = Array.isArray(setup.subjects) ? setup.subjects : [];
+
+          setSchools(Array.isArray(setup.schools) ? setup.schools : []);
+          setClasses(Array.isArray(setup.classes) ? setup.classes : []);
+          setStudents([]);
+          setActiveExams([]);
+          setSubjects(uniqueSubjects);
+          setForm((current) => ({
+            ...current,
+            subject: current.subject || uniqueSubjects[0] || "",
+          }));
+          return;
+        }
+
         const [schoolsSnapshot, classesSnapshot, studentsSnapshot, examsSnapshot] =
           await Promise.all([
-            getDocs(query(collection(db, "schools"), where("isActive", "==", true))),
-            getDocs(query(collection(db, "classes"), where("isActive", "==", true))),
-            getDocs(query(collection(db, "students"), where("isActive", "==", true))),
-            getDocs(query(collection(db, "exams"), where("isActive", "==", true))),
+            getDocs(query(collection(liteDb, "schools"), where("isActive", "==", true))),
+            getDocs(query(collection(liteDb, "classes"), where("isActive", "==", true))),
+            getDocs(query(collection(liteDb, "students"), where("isActive", "==", true))),
+            getDocs(query(collection(liteDb, "exams"), where("isActive", "==", true))),
           ]);
 
         if (!active) {
@@ -225,7 +251,7 @@ export default function StudentRegistrationPage() {
       const examData = matchingExams[0];
       const questionsSnapshot = await getDocs(
         query(
-          collection(db, "exams", examData.id, "questions"),
+          collection(liteDb, "exams", examData.id, "questions"),
           orderBy("createdAt", "asc"),
         ),
       );

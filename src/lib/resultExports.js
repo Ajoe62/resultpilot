@@ -1,10 +1,11 @@
 import {
   buildResultFilename,
   buildResultSheetHtml,
+  buildTermResultSheetHtml,
 } from "./resultSheetData";
 import {
   buildTermResultFilename,
-  buildTermResultSheetHtml,
+  buildTermResultSheetHtml as buildTermResultSheetHtmlLegacy,
 } from "./termResultData";
 
 export function downloadResultDoc(result) {
@@ -40,8 +41,19 @@ export function printResultPdf(result) {
   }, 250);
 }
 
-export function downloadTermResultDoc(sourceResult, allResults, manualScores = []) {
-  const html = buildTermResultSheetHtml(sourceResult, allResults, manualScores);
+export function downloadTermResultDoc(
+  sourceResult,
+  allResults,
+  schoolData = {},
+  termNotes = "",
+  attendance = {},
+  manualScores = [],
+) {
+  const html = buildTermResultSheetHtmlLegacy(
+    sourceResult,
+    allResults,
+    manualScores,
+  );
   const blob = new Blob([html], {
     type: "application/msword;charset=utf-8",
   });
@@ -56,8 +68,19 @@ export function downloadTermResultDoc(sourceResult, allResults, manualScores = [
   URL.revokeObjectURL(url);
 }
 
-export function printTermResultPdf(sourceResult, allResults, manualScores = []) {
-  const html = buildTermResultSheetHtml(sourceResult, allResults, manualScores);
+export function printTermResultPdf(
+  sourceResult,
+  allResults,
+  schoolData = {},
+  termNotes = "",
+  attendance = {},
+  manualScores = [],
+) {
+  const html = buildTermResultSheetHtmlLegacy(
+    sourceResult,
+    allResults,
+    manualScores,
+  );
   const printWindow = window.open("", "_blank", "noopener,noreferrer");
 
   if (!printWindow) {

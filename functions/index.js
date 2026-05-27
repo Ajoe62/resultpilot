@@ -53,6 +53,10 @@ function cleanString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function normalizeLookupKey(value) {
+  return cleanString(value).toLowerCase();
+}
+
 function shuffleArray(items) {
   const copy = [...items];
 
@@ -196,31 +200,88 @@ async function assertAdmin(uid) {
   }
 }
 
+function serializeActiveDocument(documentSnapshot, fields) {
+  const data = documentSnapshot.data();
+
+  return fields.reduce(
+    (result, field) => ({
+      ...result,
+      [field]: data[field] ?? "",
+    }),
+    { id: documentSnapshot.id },
+  );
+}
+
+exports.getStudentRegistrationSetup = onCall(getCallableOptions(), async () => {
+  const [schoolsSnapshot, classesSnapshot, examsSnapshot] = await Promise.all([
+    db.collection("schools").where("isActive", "==", true).get(),
+    db.collection("classes").where("isActive", "==", true).get(),
+    db.collection("exams").where("isActive", "==", true).get(),
+  ]);
+
+  const schools = schoolsSnapshot.docs
+    .map((documentSnapshot) =>
+      serializeActiveDocument(documentSnapshot, ["name"]),
+    )
+    .sort((first, second) => first.name.localeCompare(second.name));
+
+  const classes = classesSnapshot.docs
+    .map((documentSnapshot) =>
+      serializeActiveDocument(documentSnapshot, ["name", "schoolId"]),
+    )
+    .sort((first, second) => first.name.localeCompare(second.name));
+
+  const subjectNames = new Map();
+  for (const examDoc of examsSnapshot.docs) {
+    const subject = cleanString(examDoc.data().subject);
+    if (subject) {
+      subjectNames.set(normalizeLookupKey(subject), subject);
+    }
+  }
+
+  return {
+    schools,
+    classes,
+    students: [],
+    subjects: [...subjectNames.values()].sort((first, second) =>
+      first.localeCompare(second),
+    ),
+  };
+});
+
 exports.startExamSession = onCall(getCallableOptions(), async (request) => {
   const { student, subject, pin } = validateStudentPayload(request.data ?? {});
+  const subjectKey = normalizeLookupKey(subject);
+  const pinKey = normalizeLookupKey(pin);
 
   const examSnapshot = await db
     .collection("exams")
-    .where("subject", "==", subject)
-    .where("pin", "==", pin)
     .where("isActive", "==", true)
     .get();
 
-  if (examSnapshot.empty) {
+  const matchingExamDocs = examSnapshot.docs.filter((examDoc) => {
+    const examData = examDoc.data();
+    return (
+      normalizeLookupKey(examData.subjectKey || examData.subject) === subjectKey &&
+      normalizeLookupKey(examData.pinKey || examData.pin) === pinKey
+    );
+  });
+
+  if (!matchingExamDocs.length) {
     throw new HttpsError(
       "not-found",
       "No active exam matches that subject and access PIN.",
     );
   }
 
-  if (examSnapshot.size > 1) {
+  if (matchingExamDocs.length > 1) {
     throw new HttpsError(
       "failed-precondition",
       "Multiple active exams match this subject and PIN.",
     );
   }
 
-  const examDoc = examSnapshot.docs[0];
+  const examDoc = matchingExamDocs[0];
   const exam = validateExam(examDoc.data(), examDoc.id);
 
   const questionsSnapshot = await examDoc.ref

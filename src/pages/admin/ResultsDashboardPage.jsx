@@ -28,9 +28,8 @@ import {
 } from "../../lib/utils";
 
 function getStudentLabel(student) {
-  return `${student.fullName || "Unnamed Student"}${
-    student.admissionNumber ? ` (${student.admissionNumber})` : ""
-  }`;
+  return `${student.fullName || "Unnamed Student"}${student.admissionNumber ? ` (${student.admissionNumber})` : ""
+    }`;
 }
 
 function getStudentKey(student) {
@@ -60,6 +59,7 @@ export default function ResultsDashboardPage() {
   const [students, setStudents] = useState([]);
   const [results, setResults] = useState([]);
   const [manualScores, setManualScores] = useState([]);
+  const [termNotes, setTermNotes] = useState([]);
   const [status, setStatus] = useState("");
   const [filters, setFilters] = useState({
     schoolId: "",
@@ -72,6 +72,11 @@ export default function ResultsDashboardPage() {
     assessmentType: DEFAULT_ASSESSMENT_TYPE,
     score: "",
     note: "",
+  });
+  const [attendance, setAttendance] = useState({
+    daysOfSchool: "",
+    daysAttended: "",
+    daysAbsent: "",
   });
 
   useEffect(() => {
@@ -87,6 +92,12 @@ export default function ResultsDashboardPage() {
       }),
       onSnapshot(query(collection(db, "manualScores"), orderBy("createdAt", "desc")), (snapshot) => {
         setManualScores(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
+      }),
+      onSnapshot(query(collection(db, "termNotes"), orderBy("createdAt", "desc")), (snapshot) => {
+        setTermNotes(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
+      }).catch(() => {
+        // termNotes collection may not exist yet, this is fine
+        setTermNotes([]);
       }),
     ];
 
@@ -182,7 +193,7 @@ export default function ResultsDashboardPage() {
     (score) =>
       sourceResult &&
       (score.studentId || score.studentName) ===
-        (sourceResult.studentId || sourceResult.studentName) &&
+      (sourceResult.studentId || sourceResult.studentName) &&
       (score.schoolId || score.school) === (sourceResult.schoolId || sourceResult.school) &&
       score.academicSession === sourceResult.academicSession &&
       score.term === sourceResult.term,
@@ -281,13 +292,51 @@ export default function ResultsDashboardPage() {
 
   const handlePrintPdf = () => {
     if (sourceResult) {
-      printTermResultPdf(sourceResult, results, manualScores);
+      const schoolData = schools.find((s) => s.id === sourceResult.schoolId) || {};
+      const termNotesEntry = termNotes.find(
+        (tn) =>
+          tn.studentId === sourceResult.studentId &&
+          tn.academicSession === sourceResult.academicSession &&
+          tn.term === sourceResult.term,
+      );
+      const attendanceData = {
+        daysOfSchool: Number(attendance.daysOfSchool) || 0,
+        daysAttended: Number(attendance.daysAttended) || 0,
+        daysAbsent: Number(attendance.daysAbsent) || 0,
+      };
+      printTermResultPdf(
+        sourceResult,
+        results,
+        schoolData,
+        termNotesEntry?.notes || "",
+        attendanceData,
+        manualScores,
+      );
     }
   };
 
   const handleDownloadDoc = () => {
     if (sourceResult) {
-      downloadTermResultDoc(sourceResult, results, manualScores);
+      const schoolData = schools.find((s) => s.id === sourceResult.schoolId) || {};
+      const termNotesEntry = termNotes.find(
+        (tn) =>
+          tn.studentId === sourceResult.studentId &&
+          tn.academicSession === sourceResult.academicSession &&
+          tn.term === sourceResult.term,
+      );
+      const attendanceData = {
+        daysOfSchool: Number(attendance.daysOfSchool) || 0,
+        daysAttended: Number(attendance.daysAttended) || 0,
+        daysAbsent: Number(attendance.daysAbsent) || 0,
+      };
+      downloadTermResultDoc(
+        sourceResult,
+        results,
+        schoolData,
+        termNotesEntry?.notes || "",
+        attendanceData,
+        manualScores,
+      );
     }
   };
 
@@ -360,6 +409,61 @@ export default function ResultsDashboardPage() {
                 </option>
               ))}
             </select>
+          </label>
+        </div>
+
+        <div className="section-heading" style={{ marginTop: "20px", marginBottom: "12px" }}>
+          <h3>Attendance (Optional)</h3>
+          <p>Leave blank if not applicable. These values will appear in the exported result sheet.</p>
+        </div>
+
+        <div className="field-grid">
+          <label className="field">
+            <span>Days of School</span>
+            <input
+              type="number"
+              min="0"
+              value={attendance.daysOfSchool}
+              onChange={(event) =>
+                setAttendance((current) => ({
+                  ...current,
+                  daysOfSchool: event.target.value,
+                }))
+              }
+              placeholder="e.g., 110"
+            />
+          </label>
+
+          <label className="field">
+            <span>Days Attended</span>
+            <input
+              type="number"
+              min="0"
+              value={attendance.daysAttended}
+              onChange={(event) =>
+                setAttendance((current) => ({
+                  ...current,
+                  daysAttended: event.target.value,
+                }))
+              }
+              placeholder="e.g., 98"
+            />
+          </label>
+
+          <label className="field">
+            <span>Days Absent</span>
+            <input
+              type="number"
+              min="0"
+              value={attendance.daysAbsent}
+              onChange={(event) =>
+                setAttendance((current) => ({
+                  ...current,
+                  daysAbsent: event.target.value,
+                }))
+              }
+              placeholder="e.g., 12"
+            />
           </label>
         </div>
 

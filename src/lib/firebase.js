@@ -1,6 +1,10 @@
 import { initializeApp } from "firebase/app";
 import { connectAuthEmulator, getAuth } from "firebase/auth";
 import {
+  connectFirestoreEmulator as connectLiteFirestoreEmulator,
+  getFirestore as getLiteFirestore,
+} from "firebase/firestore/lite";
+import {
   connectFirestoreEmulator,
   initializeFirestore,
 } from "firebase/firestore";
@@ -31,6 +35,7 @@ export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
   ignoreUndefinedProperties: true,
 });
+export const liteDb = getLiteFirestore(app);
 export const cloudFunctions = getFunctions(app, "us-central1");
 
 if (useEmulators) {
@@ -38,5 +43,6 @@ if (useEmulators) {
     disableWarnings: true,
   });
   connectFirestoreEmulator(db, "127.0.0.1", 8080);
+  connectLiteFirestoreEmulator(liteDb, "127.0.0.1", 8080);
   connectFunctionsEmulator(cloudFunctions, "127.0.0.1", 5001);
 }
