@@ -5,8 +5,48 @@ import {
 } from "./resultSheetData";
 import {
   buildTermResultFilename,
-  buildTermResultSheetHtml as buildTermResultSheetHtmlLegacy,
+  buildTermResultModel,
 } from "./termResultData";
+
+function getScoreValue(assessment) {
+  return assessment?.hasScore ? assessment.score : "";
+}
+
+function buildTemplateSubjects(sourceResult, allResults, manualScores) {
+  return buildTermResultModel(sourceResult, allResults, manualScores).subjects.map(
+    (subject) => ({
+      subject: subject.subject,
+      firstAssessment: getScoreValue(subject.firstAssessment),
+      secondAssessment: getScoreValue(subject.secondAssessment),
+      exam: getScoreValue(subject.exam),
+      totalScore: subject.totalScore,
+    }),
+  );
+}
+
+function openPrintableResultSheet(html, errorMessage) {
+  const printWindow = window.open("", "_blank");
+
+  if (!printWindow) {
+    throw new Error(errorMessage);
+  }
+
+  const printableHtml = html.replace(
+    "</body>",
+    `<script>
+      window.addEventListener("load", () => {
+        window.setTimeout(() => {
+          window.focus();
+          window.print();
+        }, 350);
+      });
+    </script></body>`,
+  );
+
+  printWindow.document.open();
+  printWindow.document.write(printableHtml);
+  printWindow.document.close();
+}
 
 export function downloadResultDoc(result) {
   const html = buildResultSheetHtml(result);
@@ -26,19 +66,10 @@ export function downloadResultDoc(result) {
 
 export function printResultPdf(result) {
   const html = buildResultSheetHtml(result);
-  const printWindow = window.open("", "_blank", "noopener,noreferrer");
-
-  if (!printWindow) {
-    throw new Error("Allow popups to open the printable result sheet.");
-  }
-
-  printWindow.document.open();
-  printWindow.document.write(html);
-  printWindow.document.close();
-  printWindow.focus();
-  printWindow.setTimeout(() => {
-    printWindow.print();
-  }, 250);
+  openPrintableResultSheet(
+    html,
+    "Allow popups to open the printable result sheet.",
+  );
 }
 
 export function downloadTermResultDoc(
@@ -49,10 +80,12 @@ export function downloadTermResultDoc(
   attendance = {},
   manualScores = [],
 ) {
-  const html = buildTermResultSheetHtmlLegacy(
+  const html = buildTermResultSheetHtml(
     sourceResult,
-    allResults,
-    manualScores,
+    buildTemplateSubjects(sourceResult, allResults, manualScores),
+    schoolData,
+    termNotes,
+    attendance,
   );
   const blob = new Blob([html], {
     type: "application/msword;charset=utf-8",
@@ -76,22 +109,15 @@ export function printTermResultPdf(
   attendance = {},
   manualScores = [],
 ) {
-  const html = buildTermResultSheetHtmlLegacy(
+  const html = buildTermResultSheetHtml(
     sourceResult,
-    allResults,
-    manualScores,
+    buildTemplateSubjects(sourceResult, allResults, manualScores),
+    schoolData,
+    termNotes,
+    attendance,
   );
-  const printWindow = window.open("", "_blank", "noopener,noreferrer");
-
-  if (!printWindow) {
-    throw new Error("Allow popups to open the printable term result sheet.");
-  }
-
-  printWindow.document.open();
-  printWindow.document.write(html);
-  printWindow.document.close();
-  printWindow.focus();
-  printWindow.setTimeout(() => {
-    printWindow.print();
-  }, 250);
+  openPrintableResultSheet(
+    html,
+    "Allow popups to open the printable term result sheet.",
+  );
 }

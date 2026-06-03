@@ -87,6 +87,20 @@ describe("term result data", () => {
     assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/);
   });
 
+  it("uses the shared result sheet template for term exports", () => {
+    const html = buildTermResultSheetHtml(
+      { ...baseResult, school: "Aretha Sage Academy" },
+      [{ ...baseResult, subject: "HTML" }],
+    );
+
+    assert.match(html, /Result Sheet/);
+    assert.match(html, /OVERALL GRADE/);
+    assert.match(html, /First Assessment/);
+    assert.match(html, /Second Assessment/);
+    assert.match(html, /Exam \(60%\)/);
+    assert.doesNotMatch(html, /Full Term Result Sheet/);
+  });
+
   it("builds complete result filenames", () => {
     assert.equal(
       buildTermResultFilename(baseResult, "doc"),

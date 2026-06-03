@@ -13,6 +13,18 @@ import { usesFunctionExamFlow } from "../lib/examMode";
 import { cloudFunctions, liteDb } from "../lib/firebase";
 import { shuffleArray } from "../lib/utils";
 
+function getSetupErrorMessage(error) {
+  if (error?.code === "functions/not-found") {
+    return "Exam setup service is not deployed yet. Ask the tutor to redeploy the app backend.";
+  }
+
+  if (error?.code === "functions/internal") {
+    return "Exam setup service returned an internal error. Ask the tutor to refresh the deployment.";
+  }
+
+  return error?.message || "Unable to load active exam setup.";
+}
+
 export default function StudentRegistrationPage() {
   const navigate = useNavigate();
   const { startSession, clearSession } = useExamSession();
@@ -114,7 +126,7 @@ export default function StudentRegistrationPage() {
         }));
       } catch (setupError) {
         if (active) {
-          setError(`Unable to load active exam setup: ${setupError.message}`);
+          setError(`Unable to load active exam setup: ${getSetupErrorMessage(setupError)}`);
         }
       }
     }
@@ -265,7 +277,7 @@ export default function StudentRegistrationPage() {
         return;
       }
 
-      const selectedQuestions = shuffleArray(questions).slice(0, 10);
+      const selectedQuestions = shuffleArray(questions);
 
       const startedAt = Date.now();
 

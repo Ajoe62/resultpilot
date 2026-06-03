@@ -6,6 +6,7 @@ import {
   normalizeAssessmentType,
 } from "./assessmentTypes.js";
 import {
+  buildTermResultSheetHtml as buildSharedTermResultSheetHtml,
   getResultGrade,
   getResultRemark,
   sanitizeFilename,
@@ -210,6 +211,22 @@ export function buildTermResultFilename(sourceResult, extension) {
 
 export function buildTermResultSheetHtml(sourceResult, allResults, manualScores = []) {
   const model = buildTermResultModel(sourceResult, allResults, manualScores);
+  const subjectResults = model.subjects.map((subject) => ({
+    subject: subject.subject,
+    firstAssessment: subject.firstAssessment.hasScore
+      ? subject.firstAssessment.score
+      : "",
+    secondAssessment: subject.secondAssessment.hasScore
+      ? subject.secondAssessment.score
+      : "",
+    exam: subject.exam.hasScore ? subject.exam.score : "",
+    totalScore: subject.totalScore,
+  }));
+
+  return buildSharedTermResultSheetHtml(sourceResult, subjectResults, {
+    name: model.school,
+  });
+
   const subjectRows = model.subjects.map((subject) => `
         <tr>
           <td>${escapeHtml(subject.subject)}</td>

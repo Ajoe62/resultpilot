@@ -53,8 +53,20 @@ function cleanString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function displayString(value) {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value).trim();
+  }
+
+  return "";
+}
+
 function normalizeLookupKey(value) {
-  return cleanString(value).toLowerCase();
+  return displayString(value).toLowerCase();
 }
 
 function shuffleArray(items) {
@@ -206,47 +218,57 @@ function serializeActiveDocument(documentSnapshot, fields) {
   return fields.reduce(
     (result, field) => ({
       ...result,
-      [field]: data[field] ?? "",
+      [field]: displayString(data[field]),
     }),
     { id: documentSnapshot.id },
   );
 }
 
 exports.getStudentRegistrationSetup = onCall(getCallableOptions(), async () => {
-  const [schoolsSnapshot, classesSnapshot, examsSnapshot] = await Promise.all([
-    db.collection("schools").where("isActive", "==", true).get(),
-    db.collection("classes").where("isActive", "==", true).get(),
-    db.collection("exams").where("isActive", "==", true).get(),
-  ]);
+  try {
+    const [schoolsSnapshot, classesSnapshot, examsSnapshot] = await Promise.all([
+      db.collection("schools").where("isActive", "==", true).get(),
+      db.collection("classes").where("isActive", "==", true).get(),
+      db.collection("exams").where("isActive", "==", true).get(),
+    ]);
 
-  const schools = schoolsSnapshot.docs
-    .map((documentSnapshot) =>
-      serializeActiveDocument(documentSnapshot, ["name"]),
-    )
-    .sort((first, second) => first.name.localeCompare(second.name));
+    const schools = schoolsSnapshot.docs
+      .map((documentSnapshot) =>
+        serializeActiveDocument(documentSnapshot, ["name"]),
+      )
+      .filter((school) => school.name)
+      .sort((first, second) => first.name.localeCompare(second.name));
 
-  const classes = classesSnapshot.docs
-    .map((documentSnapshot) =>
-      serializeActiveDocument(documentSnapshot, ["name", "schoolId"]),
-    )
-    .sort((first, second) => first.name.localeCompare(second.name));
+    const classes = classesSnapshot.docs
+      .map((documentSnapshot) =>
+        serializeActiveDocument(documentSnapshot, ["name", "schoolId"]),
+      )
+      .filter((classItem) => classItem.name)
+      .sort((first, second) => first.name.localeCompare(second.name));
 
-  const subjectNames = new Map();
-  for (const examDoc of examsSnapshot.docs) {
-    const subject = cleanString(examDoc.data().subject);
-    if (subject) {
-      subjectNames.set(normalizeLookupKey(subject), subject);
+    const subjectNames = new Map();
+    for (const examDoc of examsSnapshot.docs) {
+      const subject = displayString(examDoc.data().subject);
+      if (subject) {
+        subjectNames.set(normalizeLookupKey(subject), subject);
+      }
     }
-  }
 
-  return {
-    schools,
-    classes,
-    students: [],
-    subjects: [...subjectNames.values()].sort((first, second) =>
-      first.localeCompare(second),
-    ),
-  };
+    return {
+      schools,
+      classes,
+      students: [],
+      subjects: [...subjectNames.values()].sort((first, second) =>
+        first.localeCompare(second),
+      ),
+    };
+  } catch (error) {
+    console.error("getStudentRegistrationSetup failed", error);
+    throw new HttpsError(
+      "unavailable",
+      "Unable to load active exam setup. Please refresh or contact the tutor.",
+    );
+  }
 });
 
 exports.startExamSession = onCall(getCallableOptions(), async (request) => {
@@ -300,7 +322,7 @@ exports.startExamSession = onCall(getCallableOptions(), async (request) => {
     questionsSnapshot.docs.map((questionDoc) =>
       validateQuestion(questionDoc.data(), questionDoc.id),
     ),
-  ).slice(0, 10);
+  );
 
   const startedAt = Date.now();
   const endsAt = startedAt + exam.duration * 60 * 1000;

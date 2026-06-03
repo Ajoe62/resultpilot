@@ -60,6 +60,39 @@ describe("result sheet data", () => {
     assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/);
   });
 
+  it("uses the result sheet template for single assessment exports", () => {
+    const html = buildResultSheetHtml({
+      studentName: "Amina Yusuf",
+      school: "Aretha Sage Academy",
+      class: "JSS1 A",
+      subject: "Computer Science",
+      assessmentType: "exam",
+      assessmentMaxScore: 60,
+      score: 45,
+      total: 60,
+      percentage: 75,
+      passed: true,
+    });
+
+    assert.match(html, /Result Sheet/);
+    assert.match(html, /OVERALL GRADE/);
+    assert.match(html, /First Assessment/);
+    assert.match(html, /Second Assessment/);
+    assert.match(html, /Exam \(60%\)/);
+    assert.match(html, /Aretha Sage Academy/);
+    assert.match(html, /Name of Student:/);
+    assert.match(html, /ATTENDANCE/);
+    assert.match(html, /SEMESTER 1/);
+    assert.match(html, /SEMESTER 2/);
+    assert.match(html, /Notes:/);
+    assert.match(html, /Grading system:/);
+    assert.match(html, /#142866/);
+    assert.match(html, /#ffd84d/);
+    assert.match(html, /#c9e4f4/);
+    assert.match(html, /#fbf1ce/);
+    assert.doesNotMatch(html, /Student Assessment Result/);
+  });
+
   it("builds doc/pdf filenames from result identity fields", () => {
     assert.equal(
       buildResultFilename({

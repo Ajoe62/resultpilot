@@ -6,7 +6,7 @@ import { formatDuration } from "../lib/utils";
 
 export default function ExamPage() {
   const navigate = useNavigate();
-  const { session, selectAnswer, moveNext, submitSession } = useExamSession();
+  const { session, selectAnswer, moveNext, movePrevious, submitSession } = useExamSession();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [remainingSeconds, setRemainingSeconds] = useState(() =>
@@ -15,6 +15,7 @@ export default function ExamPage() {
 
   const currentQuestion = session.questions[session.currentIndex];
   const selectedAnswer = session.answers[currentQuestion.id] ?? "";
+  const isFirstQuestion = session.currentIndex === 0;
   const isLastQuestion = session.currentIndex === session.questions.length - 1;
   const progress = Math.round(
     ((session.currentIndex + 1) / session.questions.length) * 100,
@@ -79,6 +80,11 @@ export default function ExamPage() {
     }
   };
 
+  const handlePrevious = () => {
+    setError("");
+    movePrevious();
+  };
+
   return (
     <div className="page-shell">
       <div className="exam-layout">
@@ -125,20 +131,30 @@ export default function ExamPage() {
 
           <div className="exam-actions">
             <div className="exam-helper">
-              Backtracking is disabled for this session.
+              You can review and change previous answers before submitting.
             </div>
-            <button
-              className="primary-button"
-              disabled={submitting}
-              onClick={handleNext}
-              type="button"
-            >
-              {submitting
-                ? "Submitting..."
-                : isLastQuestion
-                  ? "Submit Exam"
-                  : "Next Question"}
-            </button>
+            <div className="button-row">
+              <button
+                className="secondary-button"
+                disabled={submitting || isFirstQuestion}
+                onClick={handlePrevious}
+                type="button"
+              >
+                Previous Question
+              </button>
+              <button
+                className="primary-button"
+                disabled={submitting}
+                onClick={handleNext}
+                type="button"
+              >
+                {submitting
+                  ? "Submitting..."
+                  : isLastQuestion
+                    ? "Submit Exam"
+                    : "Next Question"}
+              </button>
+            </div>
           </div>
         </section>
 

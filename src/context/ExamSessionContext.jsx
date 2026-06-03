@@ -81,6 +81,19 @@ export function ExamSessionProvider({ children }) {
     });
   };
 
+  const movePrevious = () => {
+    setSession((current) => {
+      if (!current) return current;
+
+      const previousIndex = Math.max(current.currentIndex - 1, 0);
+
+      return {
+        ...current,
+        currentIndex: previousIndex,
+      };
+    });
+  };
+
   const clearSession = () => {
     setSession(null);
   };
@@ -202,6 +215,7 @@ export function ExamSessionProvider({ children }) {
     startSession,
     selectAnswer,
     moveNext,
+    movePrevious,
     submitSession,
     clearSession,
   };

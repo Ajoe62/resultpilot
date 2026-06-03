@@ -92,169 +92,30 @@ export function buildResultFilename(result, extension) {
 }
 
 export function buildResultSheetHtml(result) {
-  const model = buildResultSheetModel(result);
+  const assessmentType = result.assessmentType || "exam";
+  const maxScore = Number(result.assessmentMaxScore || 60);
+  const scaledScore = result.total
+    ? Math.round((Number(result.score || 0) / Number(result.total || 1)) * maxScore * 10) / 10
+    : Number(result.score || 0);
 
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>${escapeHtml(model.studentName)} Result</title>
-  <style>
-    @page { size: A4; margin: 18mm; }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      color: #111827;
-      font-family: Arial, Helvetica, sans-serif;
-      background: #ffffff;
-    }
-    .sheet {
-      width: 100%;
-      max-width: 760px;
-      margin: 0 auto;
-      border: 1px solid #d1d5db;
-      padding: 28px;
-    }
-    .header {
-      text-align: center;
-      border-bottom: 2px solid #111827;
-      padding-bottom: 16px;
-      margin-bottom: 22px;
-    }
-    .school {
-      margin: 0;
-      font-size: 26px;
-      text-transform: uppercase;
-    }
-    .title {
-      margin: 8px 0 0;
-      font-size: 16px;
-      color: #4b5563;
-    }
-    .meta {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px 18px;
-      margin-bottom: 22px;
-      font-size: 14px;
-    }
-    .meta div {
-      border-bottom: 1px solid #e5e7eb;
-      padding-bottom: 6px;
-    }
-    .meta span {
-      display: block;
-      color: #6b7280;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 3px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 22px;
-    }
-    th, td {
-      border: 1px solid #d1d5db;
-      padding: 10px;
-      text-align: left;
-      font-size: 14px;
-    }
-    th {
-      background: #f3f4f6;
-      font-weight: 700;
-    }
-    .summary {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px;
-      margin-bottom: 28px;
-    }
-    .summary div {
-      border: 1px solid #d1d5db;
-      padding: 12px;
-      text-align: center;
-    }
-    .summary span {
-      display: block;
-      color: #6b7280;
-      font-size: 11px;
-      text-transform: uppercase;
-      margin-bottom: 5px;
-    }
-    .summary strong {
-      font-size: 18px;
-    }
-    .footer {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 40px;
-      margin-top: 44px;
-      font-size: 13px;
-    }
-    .signature {
-      border-top: 1px solid #111827;
-      padding-top: 8px;
-      text-align: center;
-    }
-  </style>
-</head>
-<body>
-  <main class="sheet">
-    <section class="header">
-      <h1 class="school">${escapeHtml(model.school)}</h1>
-      <p class="title">${escapeHtml(model.title)}</p>
-    </section>
-
-    <section class="meta">
-      <div><span>Student Name</span>${escapeHtml(model.studentName)}</div>
-      <div><span>Admission Number</span>${escapeHtml(model.admissionNumber)}</div>
-      <div><span>Class</span>${escapeHtml(model.className)}</div>
-      <div><span>Date</span>${escapeHtml(model.submittedAt)}</div>
-      <div><span>Session</span>${escapeHtml(model.academicSession)}</div>
-      <div><span>Term</span>${escapeHtml(model.term)}</div>
-      <div><span>Assessment</span>${escapeHtml(model.examTitle)}</div>
-      <div><span>Result ID</span>${escapeHtml(model.resultId)}</div>
-    </section>
-
-    <table>
-      <thead>
-        <tr>
-          <th>Subject</th>
-          <th>Score</th>
-          <th>Total</th>
-          <th>Percentage</th>
-          <th>Grade</th>
-          <th>Remark</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>${escapeHtml(model.subject)}</td>
-          <td>${escapeHtml(model.score)}</td>
-          <td>${escapeHtml(model.total)}</td>
-          <td>${escapeHtml(model.percentage)}%</td>
-          <td>${escapeHtml(model.grade)}</td>
-          <td>${escapeHtml(model.remark)}</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <section class="summary">
-      <div><span>Status</span><strong>${escapeHtml(model.status)}</strong></div>
-      <div><span>Grade</span><strong>${escapeHtml(model.grade)}</strong></div>
-      <div><span>Score</span><strong>${escapeHtml(model.score)}/${escapeHtml(model.total)}</strong></div>
-      <div><span>Percentage</span><strong>${escapeHtml(model.percentage)}%</strong></div>
-    </section>
-
-    <section class="footer">
-      <div class="signature">Class Teacher</div>
-      <div class="signature">Principal / Director</div>
-    </section>
-  </main>
-</body>
-</html>`;
+  return buildTermResultSheetHtml(
+    {
+      ...result,
+      className: result.className || result.class || "-",
+    },
+    [
+      {
+        subject: result.subject || "Unknown Subject",
+        firstAssessment: assessmentType === "first_assessment" ? scaledScore : "",
+        secondAssessment: assessmentType === "second_assessment" ? scaledScore : "",
+        exam: assessmentType === "exam" ? scaledScore : "",
+        totalScore: scaledScore,
+      },
+    ],
+    {
+      name: result.school,
+    },
+  );
 }
 
 export function buildTermResultSheetModel(
@@ -264,9 +125,15 @@ export function buildTermResultSheetModel(
   termNotes = "",
   attendance = {},
 ) {
-  // Calculate overall grade as average of all subjects' total scores
   let totalScore = 0;
   let subjectCount = 0;
+
+  const normalizeScore = (value) => {
+    if (value === "" || value === null || value === undefined) return "";
+
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : "";
+  };
 
   const subjects = subjectResults.map((subject) => {
     const subjectTotal = Number(subject.totalScore || 0);
@@ -275,9 +142,9 @@ export function buildTermResultSheetModel(
 
     return {
       name: subject.subject || "Unknown Subject",
-      firstAssessment: Number(subject.firstAssessment || 0),
-      secondAssessment: Number(subject.secondAssessment || 0),
-      exam: Number(subject.exam || 0),
+      firstAssessment: normalizeScore(subject.firstAssessment),
+      secondAssessment: normalizeScore(subject.secondAssessment),
+      exam: normalizeScore(subject.exam),
       totalScore: subjectTotal,
     };
   });
@@ -287,12 +154,21 @@ export function buildTermResultSheetModel(
   const overallGradeLettr = getResultGrade(overallGrade);
 
   return {
-    school: schoolData.name || "School Name",
-    schoolEmail: schoolData.email || "info@school.edu",
-    schoolPhone: schoolData.phone || "+1 (555) 000-0000",
+    school: schoolData.name || studentData.school || "School Name",
+    schoolEmail:
+      schoolData.email ||
+      schoolData.contactEmail ||
+      studentData.schoolEmail ||
+      "apple@arethasageacademy.com",
+    schoolPhone:
+      schoolData.phone ||
+      schoolData.contactPhone ||
+      schoolData.address ||
+      studentData.schoolPhone ||
+      "For more information contact Ms. Apple at",
     studentName: studentData.studentName || "Student",
     admissionNumber: studentData.admissionNumber || "-",
-    section: studentData.className || "-",
+    section: studentData.className || studentData.class || "-",
     term: studentData.term || "Unspecified Term",
     schoolYear: studentData.academicSession || "Unspecified Session",
     subjects,
@@ -303,12 +179,432 @@ export function buildTermResultSheetModel(
       daysOfSchool: attendance.daysOfSchool || 0,
       daysAttended: attendance.daysAttended || 0,
       daysAbsent: attendance.daysAbsent || 0,
+      daysOfSchool2: attendance.daysOfSchool2 || "",
+      daysAttended2: attendance.daysAttended2 || "",
+      daysAbsent2: attendance.daysAbsent2 || "",
     },
-    hasAttendance: Boolean(attendance.daysOfSchool),
   };
 }
 
 export function buildTermResultSheetHtml(
+  studentData,
+  subjectResults,
+  schoolData = {},
+  termNotes = "",
+  attendance = {},
+) {
+  const model = buildTermResultSheetModel(
+    studentData,
+    subjectResults,
+    schoolData,
+    termNotes,
+    attendance,
+  );
+  const notesText =
+    model.notes || "No teacher notes have been entered for this result sheet.";
+  const subjectRows = model.subjects
+    .map(
+      (subject) => `
+            <tr>
+              <td class="subject-cell">${escapeHtml(subject.name)}</td>
+              <td class="score-cell score-cell-blue">${escapeHtml(subject.firstAssessment)}</td>
+              <td class="score-cell score-cell-blue">${escapeHtml(subject.secondAssessment)}</td>
+              <td class="score-cell score-cell-yellow">${escapeHtml(subject.exam)}</td>
+              <td class="score-cell score-cell-yellow">${escapeHtml(subject.totalScore)}</td>
+            </tr>`,
+    )
+    .join("");
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(model.studentName)} - Term Result Sheet</title>
+  <style>
+    @page { size: A4 portrait; margin: 0; }
+    * { box-sizing: border-box; }
+    html { background: #e5e7eb; }
+    body {
+      margin: 0;
+      color: #141a24;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #e5e7eb;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .sheet {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 7px solid #f4f5f7;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
+    }
+    .header {
+      height: 42mm;
+      background: #142866;
+      color: #ffffff;
+      padding: 13mm 12mm 9mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .header-left h1 {
+      margin: 0;
+      color: #ffd94a;
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 31px;
+      line-height: 1.05;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+    .header-left p {
+      margin: 7px 0 0;
+      color: #ffffff;
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 24px;
+      line-height: 1;
+      font-weight: 700;
+    }
+    .header-right {
+      width: 225px;
+      padding-top: 1mm;
+      color: #ffffff;
+      font-size: 9px;
+      line-height: 1.25;
+      text-align: left;
+    }
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 17px;
+    }
+    .school-mark {
+      position: relative;
+      display: inline-block;
+      width: 25px;
+      height: 24px;
+      border-bottom: 3px solid #ffd94a;
+      flex: 0 0 auto;
+    }
+    .school-mark::before {
+      content: "";
+      position: absolute;
+      left: 2px;
+      top: 0;
+      width: 21px;
+      height: 0;
+      border-left: 10.5px solid transparent;
+      border-right: 10.5px solid transparent;
+      border-bottom: 6px solid #ffd94a;
+    }
+    .school-mark::after {
+      content: "";
+      position: absolute;
+      left: 5px;
+      top: 8px;
+      width: 15px;
+      height: 10px;
+      border-left: 3px solid #ffd94a;
+      border-right: 3px solid #ffd94a;
+      background: linear-gradient(90deg, transparent 0 4px, #ffd94a 4px 6px, transparent 6px 9px, #ffd94a 9px 11px, transparent 11px);
+    }
+    .brand-name {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .contact-copy {
+      margin: 0;
+      font-size: 8px;
+      font-weight: 700;
+      text-align: center;
+    }
+    .contact-email {
+      margin: 1px 0 0;
+      color: #ffd94a;
+      font-size: 10px;
+      font-weight: 700;
+      text-align: center;
+    }
+    .content { padding: 9mm 11mm 12mm; }
+    .student-info-table,
+    .results-table,
+    .attendance-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .student-info-table { margin: 0 0 8mm; }
+    .student-info-table th,
+    .student-info-table td {
+      border: 1px solid #8c929d;
+      height: 36px;
+      padding: 9px 10px;
+      font-size: 11px;
+      line-height: 1.15;
+      vertical-align: middle;
+      text-align: left;
+    }
+    .student-info-table th {
+      width: 25%;
+      color: #ffffff;
+      background: #142866;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .student-info-table td {
+      width: 25%;
+      background: #ffffff;
+      font-weight: 400;
+    }
+    .results-table { margin: 0 0 5px; }
+    .results-table th,
+    .results-table td {
+      border: 1px solid #7e88a2;
+      padding: 6px 9px;
+      font-size: 11px;
+      line-height: 1.2;
+      height: 27px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .results-table th {
+      height: 68px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .subject-heading {
+      width: 27%;
+      color: #ffffff;
+      background: #142866;
+    }
+    .first-heading,
+    .second-heading {
+      width: 16%;
+      color: #000000;
+      background: #5389f3;
+    }
+    .exam-heading {
+      width: 16%;
+      color: #000000;
+      background: #ffd84d;
+    }
+    .total-heading {
+      width: 23%;
+      color: #000000;
+      background: #ffd84d;
+    }
+    .subject-cell { background: #ffffff; color: #1f2937; }
+    .score-cell { font-weight: 400; text-align: left; }
+    .score-cell-blue { background: #c9e4f4; }
+    .score-cell-yellow { background: #fbf1ce; }
+    .middle-grid {
+      display: grid;
+      grid-template-columns: 58% 38%;
+      gap: 4%;
+      align-items: stretch;
+      margin-top: 5px;
+    }
+    .attendance-table th,
+    .attendance-table td {
+      border: 1px solid #7e88a2;
+      height: 31px;
+      padding: 7px 9px;
+      font-size: 11px;
+      line-height: 1.2;
+      text-align: left;
+    }
+    .attendance-table th {
+      color: #ffffff;
+      background: #142866;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .attendance-table th:nth-child(2) {
+      color: #000000;
+      background: #5389f3;
+    }
+    .attendance-table th:nth-child(3) {
+      color: #000000;
+      background: #ffd84d;
+    }
+    .attendance-table td:nth-child(2) { background: #c9e4f4; }
+    .attendance-table td:nth-child(3) { background: #fbf1ce; }
+    .overall-card {
+      background: #c9e4f4;
+      min-height: 120px;
+      padding: 23px 21px;
+    }
+    .grade-label {
+      margin: 0 0 7px;
+      color: #1f2937;
+      font-size: 16px;
+      font-weight: 400;
+      text-transform: uppercase;
+    }
+    .grade-value {
+      margin: 0;
+      color: #142866;
+      font-size: 25px;
+      line-height: 1;
+      font-weight: 700;
+    }
+    .previous-grade {
+      margin: 8px 0 0;
+      color: #1f2937;
+      font-size: 11px;
+    }
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 57% 38%;
+      gap: 5%;
+      align-items: stretch;
+      margin-top: 31px;
+    }
+    .notes-card,
+    .grading-card {
+      min-height: 180px;
+      padding: 23px 20px;
+    }
+    .notes-card { background: #c9e4f4; }
+    .grading-card { background: #fbf1ce; }
+    .notes-card h3,
+    .grading-card h3 {
+      margin: 0 0 17px;
+      color: #1f2937;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .notes-card p,
+    .grading-card p {
+      margin: 0;
+      color: #1f2937;
+      font-size: 11px;
+      line-height: 1.25;
+    }
+    @media print {
+      html,
+      body {
+        width: 210mm;
+        min-height: 297mm;
+        background: #ffffff;
+      }
+      .sheet {
+        margin: 0;
+        border: 0;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet">
+    <section class="header">
+      <div class="header-left">
+        <h1>${escapeHtml(model.school)}</h1>
+        <p>Result Sheet</p>
+      </div>
+      <div class="header-right">
+        <div class="brand-row">
+          <span class="school-mark" aria-hidden="true"></span>
+          <span class="brand-name">${escapeHtml(model.school)}</span>
+        </div>
+        <p class="contact-copy">${escapeHtml(model.schoolPhone)}</p>
+        <p class="contact-email">${escapeHtml(model.schoolEmail)}</p>
+      </div>
+    </section>
+
+    <section class="content">
+      <table class="student-info-table" aria-label="Student details">
+        <tbody>
+          <tr>
+            <th>Name of Student:</th>
+            <td><strong>${escapeHtml(model.studentName)}</strong></td>
+            <th>Term :</th>
+            <td>${escapeHtml(model.term)}</td>
+          </tr>
+          <tr>
+            <th>Section:</th>
+            <td>${escapeHtml(model.section)}</td>
+            <th>School Year:</th>
+            <td>${escapeHtml(model.schoolYear)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table class="results-table">
+        <thead>
+          <tr>
+            <th class="subject-heading">SUBJECT</th>
+            <th class="first-heading">First Assessment<br>(20%)</th>
+            <th class="second-heading">Second Assessment<br>(20%)</th>
+            <th class="exam-heading">Exam (60%)</th>
+            <th class="total-heading">Total (100%)</th>
+          </tr>
+        </thead>
+        <tbody>
+${subjectRows}
+        </tbody>
+      </table>
+
+      <section class="middle-grid">
+        <table class="attendance-table" aria-label="Attendance">
+          <thead>
+            <tr>
+              <th>ATTENDANCE</th>
+              <th>SEMESTER 1</th>
+              <th>SEMESTER 2</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Days of school</td>
+              <td>${escapeHtml(model.attendance.daysOfSchool)}</td>
+              <td>${escapeHtml(model.attendance.daysOfSchool2)}</td>
+            </tr>
+            <tr>
+              <td>Days attended</td>
+              <td>${escapeHtml(model.attendance.daysAttended)}</td>
+              <td>${escapeHtml(model.attendance.daysAttended2)}</td>
+            </tr>
+            <tr>
+              <td>Days absent</td>
+              <td>${escapeHtml(model.attendance.daysAbsent)}</td>
+              <td>${escapeHtml(model.attendance.daysAbsent2)}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="overall-card">
+          <p class="grade-label">OVERALL GRADE</p>
+          <p class="grade-value">${escapeHtml(model.overallGrade)}</p>
+          <p class="previous-grade">Grade: <strong>${escapeHtml(model.overallGradeLetter)}</strong></p>
+        </div>
+      </section>
+
+      <section class="bottom-grid">
+        <div class="notes-card">
+          <h3>Notes:</h3>
+          <p>${escapeHtml(notesText)}</p>
+        </div>
+        <div class="grading-card">
+          <h3>Grading system:</h3>
+          <p>A+ 95-100 | A 91-94 | A- 85-90<br>
+          B+ 81-84 | B 77-80 | B- 74-79<br>
+          C+ 70-73 | C 66-69 | C- 60-65<br>
+          D 51-59<br>
+          F &gt;50</p>
+        </div>
+      </section>
+    </section>
+  </main>
+</body>
+</html>`;
+}
+
+function buildLegacyTermResultSheetHtml(
   studentData,
   subjectResults,
   schoolData = {},

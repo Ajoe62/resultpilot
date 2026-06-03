@@ -61,6 +61,7 @@ export default function ResultsDashboardPage() {
   const [manualScores, setManualScores] = useState([]);
   const [termNotes, setTermNotes] = useState([]);
   const [status, setStatus] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [filters, setFilters] = useState({
     schoolId: "",
     studentId: "",
@@ -80,25 +81,47 @@ export default function ResultsDashboardPage() {
   });
 
   useEffect(() => {
+    const handleSnapshotError = (label, snapshotError) => {
+      const message = snapshotError?.message || "Unknown Firestore error.";
+      setLoadError(`Unable to load ${label}: ${message}`);
+    };
+
     const unsubscribes = [
-      onSnapshot(query(collection(db, "schools"), orderBy("name", "asc")), (snapshot) => {
-        setSchools(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
-      }),
-      onSnapshot(query(collection(db, "students"), orderBy("fullName", "asc")), (snapshot) => {
-        setStudents(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
-      }),
-      onSnapshot(query(collection(db, "results"), orderBy("submittedAt", "desc")), (snapshot) => {
-        setResults(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
-      }),
-      onSnapshot(query(collection(db, "manualScores"), orderBy("createdAt", "desc")), (snapshot) => {
-        setManualScores(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
-      }),
-      onSnapshot(query(collection(db, "termNotes"), orderBy("createdAt", "desc")), (snapshot) => {
-        setTermNotes(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
-      }).catch(() => {
-        // termNotes collection may not exist yet, this is fine
-        setTermNotes([]);
-      }),
+      onSnapshot(
+        query(collection(db, "schools"), orderBy("name", "asc")),
+        (snapshot) => {
+          setSchools(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
+        },
+        (snapshotError) => handleSnapshotError("schools", snapshotError),
+      ),
+      onSnapshot(
+        query(collection(db, "students"), orderBy("fullName", "asc")),
+        (snapshot) => {
+          setStudents(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
+        },
+        (snapshotError) => handleSnapshotError("students", snapshotError),
+      ),
+      onSnapshot(
+        query(collection(db, "results"), orderBy("submittedAt", "desc")),
+        (snapshot) => {
+          setResults(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
+        },
+        (snapshotError) => handleSnapshotError("results", snapshotError),
+      ),
+      onSnapshot(
+        query(collection(db, "manualScores"), orderBy("createdAt", "desc")),
+        (snapshot) => {
+          setManualScores(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
+        },
+        (snapshotError) => handleSnapshotError("manual scores", snapshotError),
+      ),
+      onSnapshot(
+        query(collection(db, "termNotes"), orderBy("createdAt", "desc")),
+        (snapshot) => {
+          setTermNotes(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
+        },
+        (snapshotError) => handleSnapshotError("term notes", snapshotError),
+      ),
     ];
 
     return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
@@ -304,14 +327,18 @@ export default function ResultsDashboardPage() {
         daysAttended: Number(attendance.daysAttended) || 0,
         daysAbsent: Number(attendance.daysAbsent) || 0,
       };
-      printTermResultPdf(
-        sourceResult,
-        results,
-        schoolData,
-        termNotesEntry?.notes || "",
-        attendanceData,
-        manualScores,
-      );
+      try {
+        printTermResultPdf(
+          sourceResult,
+          results,
+          schoolData,
+          termNotesEntry?.notes || "",
+          attendanceData,
+          manualScores,
+        );
+      } catch (error) {
+        setStatus(error?.message || "Unable to open the printable PDF result sheet.");
+      }
     }
   };
 
@@ -346,6 +373,8 @@ export default function ResultsDashboardPage() {
         <h2>Results Dashboard</h2>
         <p>Select a school, student, session, and term to build a full combined result.</p>
       </div>
+
+      {loadError ? <p className="form-error">{loadError}</p> : null}
 
       <div className="card filters-card">
         <div className="field-grid">
@@ -472,7 +501,7 @@ export default function ResultsDashboardPage() {
             Export CSV
           </button>
           <button className="secondary-button" disabled={!model} onClick={handlePrintPdf} type="button">
-            Full PDF
+            Download as PDF
           </button>
           <button className="primary-button" disabled={!model} onClick={handleDownloadDoc} type="button">
             Full DOC
