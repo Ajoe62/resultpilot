@@ -63,7 +63,7 @@ service cloud.firestore {
     function isValidClientResultCreate() {
       let data = request.resource.data;
 
-      return request.auth == null
+      return (request.auth == null || isAdmin())
         && data.keys().hasOnly([
           "studentName",
           "studentId",
