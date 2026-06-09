@@ -1,3 +1,9 @@
+import {
+  DEFAULT_ASSESSMENT_TYPE,
+  getAssessmentMaxScore,
+  normalizeAssessmentType,
+} from "./assessmentTypes.js";
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -92,11 +98,10 @@ export function buildResultFilename(result, extension) {
 }
 
 export function buildResultSheetHtml(result) {
-  const assessmentType = result.assessmentType || "exam";
-  const maxScore = Number(result.assessmentMaxScore || 60);
-  const scaledScore = result.total
-    ? Math.round((Number(result.score || 0) / Number(result.total || 1)) * maxScore * 10) / 10
-    : Number(result.score || 0);
+  const assessmentType = normalizeAssessmentType(
+    result.assessmentType || DEFAULT_ASSESSMENT_TYPE,
+  );
+  const scaledScore = scaleResultScore(result, assessmentType);
 
   return buildTermResultSheetHtml(
     {
@@ -168,7 +173,7 @@ export function buildTermResultSheetModel(
       "For more information contact Ms. Apple at",
     studentName: studentData.studentName || "Student",
     admissionNumber: studentData.admissionNumber || "-",
-    section: studentData.className || studentData.class || "-",
+    class: studentData.className || studentData.class || "-",
     term: studentData.term || "Unspecified Term",
     schoolYear: studentData.academicSession || "Unspecified Session",
     subjects,
@@ -916,12 +921,55 @@ function buildLegacyTermResultSheetHtml(
 </html>`;
 }
 
+function roundScore(value) {
+  return Math.round(Number(value || 0) * 10) / 10;
+}
+
+function scaleResultScore(result, assessmentType) {
+  const normalizedType = normalizeAssessmentType(
+    assessmentType || result.assessmentType || DEFAULT_ASSESSMENT_TYPE,
+  );
+  const maxScore = Number(
+    result.assessmentMaxScore || getAssessmentMaxScore(normalizedType),
+  );
+  const score = Number(result.score || 0);
+  const total = Number(result.total || 0);
+
+  if (total > 0) {
+    return roundScore((score / total) * maxScore);
+  }
+
+  return roundScore(Math.min(score, maxScore));
+}
+
 export function consolidateResultsBySubject(results) {
+  const latestBySubjectAndType = new Map();
   const subjectMap = new Map();
 
   for (const result of results) {
     const subject = result.subject || "Unknown Subject";
-    const assessmentType = result.assessmentType || "exam";
+    const assessmentType = normalizeAssessmentType(
+      result.assessmentType || DEFAULT_ASSESSMENT_TYPE,
+    );
+    const key = `${String(subject).trim().toUpperCase()}__${assessmentType}`;
+    const current = latestBySubjectAndType.get(key);
+    const currentTime = Number(current?.submittedAtMs || 0);
+    const nextTime = Number(result.submittedAtMs || 0);
+
+    if (!current || nextTime >= currentTime) {
+      latestBySubjectAndType.set(key, {
+        ...result,
+        subject,
+        assessmentType,
+      });
+    }
+  }
+
+  for (const result of latestBySubjectAndType.values()) {
+    const subject = result.subject || "Unknown Subject";
+    const assessmentType = normalizeAssessmentType(
+      result.assessmentType || DEFAULT_ASSESSMENT_TYPE,
+    );
 
     if (!subjectMap.has(subject)) {
       subjectMap.set(subject, {
@@ -934,13 +982,14 @@ export function consolidateResultsBySubject(results) {
     }
 
     const subjectData = subjectMap.get(subject);
+    const scaledScore = scaleResultScore(result, assessmentType);
 
     if (assessmentType === "first_assessment") {
-      subjectData.first_assessment = Number(result.score || 0);
+      subjectData.first_assessment = scaledScore;
     } else if (assessmentType === "second_assessment") {
-      subjectData.second_assessment = Number(result.score || 0);
+      subjectData.second_assessment = scaledScore;
     } else if (assessmentType === "exam") {
-      subjectData.exam = Number(result.score || 0);
+      subjectData.exam = scaledScore;
     }
 
     subjectData.totalScore =

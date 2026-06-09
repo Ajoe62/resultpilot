@@ -4,6 +4,7 @@ import {
   buildResultFilename,
   buildResultSheetHtml,
   buildResultSheetModel,
+  consolidateResultsBySubject,
   getResultGrade,
   sanitizeFilename,
 } from "../src/lib/resultSheetData.js";
@@ -103,5 +104,68 @@ describe("result sheet data", () => {
       }, "doc"),
       "Bright-Future-JSS1-A-Amina-Yusuf-HTML.doc",
     );
+  });
+
+  it("consolidates raw attempts into weighted assessment scores", () => {
+    const subjects = consolidateResultsBySubject([
+      {
+        subject: "HTML",
+        assessmentType: "first_assessment",
+        assessmentMaxScore: 20,
+        score: 8,
+        total: 10,
+        submittedAtMs: 1,
+      },
+      {
+        subject: "HTML",
+        assessmentType: "second_assessment",
+        assessmentMaxScore: 20,
+        score: 10,
+        total: 20,
+        submittedAtMs: 1,
+      },
+      {
+        subject: "HTML",
+        assessmentType: "exam",
+        assessmentMaxScore: 60,
+        score: 45,
+        total: 60,
+        submittedAtMs: 1,
+      },
+    ]);
+
+    assert.deepEqual(subjects, [
+      {
+        subject: "HTML",
+        first_assessment: 16,
+        second_assessment: 10,
+        exam: 45,
+        totalScore: 71,
+      },
+    ]);
+  });
+
+  it("keeps only the latest duplicate assessment when consolidating", () => {
+    const subjects = consolidateResultsBySubject([
+      {
+        subject: "HTML",
+        assessmentType: "exam",
+        assessmentMaxScore: 60,
+        score: 30,
+        total: 60,
+        submittedAtMs: 1,
+      },
+      {
+        subject: "HTML",
+        assessmentType: "exam",
+        assessmentMaxScore: 60,
+        score: 45,
+        total: 60,
+        submittedAtMs: 2,
+      },
+    ]);
+
+    assert.equal(subjects[0].exam, 45);
+    assert.equal(subjects[0].totalScore, 45);
   });
 });
