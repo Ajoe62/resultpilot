@@ -423,6 +423,24 @@ exports.submitExam = onCall(getCallableOptions(), async (request) => {
       ),
     );
     const passed = percentage >= Number(session.exam?.passmark || 0);
+    let assessmentType = normalizeAssessmentType(session.exam.assessmentType);
+    let assessmentMaxScore = Number(
+      session.exam.assessmentMaxScore || ASSESSMENT_MAX_SCORES[assessmentType],
+    );
+
+    if (session.exam?.id) {
+      const latestExamSnapshot = await transaction.get(
+        db.collection("exams").doc(session.exam.id),
+      );
+
+      if (latestExamSnapshot.exists) {
+        const latestExam = latestExamSnapshot.data();
+        assessmentType = normalizeAssessmentType(latestExam.assessmentType);
+        assessmentMaxScore = Number(
+          latestExam.assessmentMaxScore || ASSESSMENT_MAX_SCORES[assessmentType],
+        );
+      }
+    }
 
     const clientResult = {
       id: sessionId,
@@ -438,11 +456,8 @@ exports.submitExam = onCall(getCallableOptions(), async (request) => {
       term: session.exam.term || "Unspecified Term",
       examId: session.exam.id,
       examTitle: session.exam.title,
-      assessmentType: normalizeAssessmentType(session.exam.assessmentType),
-      assessmentMaxScore: Number(
-        session.exam.assessmentMaxScore ||
-          ASSESSMENT_MAX_SCORES[normalizeAssessmentType(session.exam.assessmentType)],
-      ),
+      assessmentType,
+      assessmentMaxScore,
       score,
       total,
       percentage,

@@ -188,10 +188,25 @@ export default function ManageExamsPage() {
     setError("");
 
     try {
+      const assessmentMaxScore = getAssessmentMaxScore(assessmentType);
+
       await updateDoc(doc(db, "exams", exam.id), {
         assessmentType,
-        assessmentMaxScore: getAssessmentMaxScore(assessmentType),
+        assessmentMaxScore,
       });
+
+      const resultsSnapshot = await getDocs(
+        query(collection(db, "results"), where("examId", "==", exam.id)),
+      );
+
+      await Promise.all(
+        resultsSnapshot.docs.map((resultDocument) =>
+          updateDoc(doc(db, "results", resultDocument.id), {
+            assessmentType,
+            assessmentMaxScore,
+          }),
+        ),
+      );
     } catch (updateError) {
       setError(updateError.message || "Unable to update assessment type.");
     }

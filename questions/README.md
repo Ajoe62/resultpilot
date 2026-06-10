@@ -4,15 +4,17 @@ This directory contains pre-made question banks that you can import into your ex
 
 ## Available Question Banks
 
-| File               | Subject            | Questions | Topics                                             |
-| ------------------ | ------------------ | --------- | -------------------------------------------------- |
-| `html.csv`         | HTML               | 20        | HTML tags, attributes, semantics                   |
-| `css.csv`          | CSS                | 20        | Selectors, properties, layout, animations          |
-| `javascript.csv`   | JavaScript         | 20        | Variables, functions, arrays, DOM manipulation     |
-| `git-github.csv`   | Git & GitHub       | 20        | Version control, branching, commits, collaboration |
-| `comp-science.csv` | Computer Science   | 20        | CPU, RAM, Algorithms, Networks, Databases, AI      |
-| `prompt.csv`       | Prompt Engineering | 20        | AI prompts, clarity, specificity, tone             |
-| `scratch.csv`      | Scratch            | 20        | Sprites, blocks, events, loops                     |
+| File                | Subject              | Questions | Topics                                             |
+| ------------------- | -------------------- | --------- | -------------------------------------------------- |
+| `html.csv`          | HTML                 | 20        | HTML tags, attributes, semantics                   |
+| `css.csv`           | CSS                  | 20        | Selectors, properties, layout, animations          |
+| `javascript.csv`    | JavaScript           | 20        | Variables, functions, arrays, DOM manipulation     |
+| `git-github.csv`    | Git & GitHub         | 20        | Version control, branching, commits, collaboration |
+| `comp-science.csv`  | Computer Science     | 20        | CPU, RAM, Algorithms, Networks, Databases, AI      |
+| `prompt.csv`        | Prompt Engineering   | 20        | AI prompts, clarity, specificity, tone             |
+| `scratch.csv`       | Scratch              | 20        | Sprites, blocks, events, loops                     |
+| `msword-junior`     | MS Word (Junior)     | TBD       | Word features, formatting, document tools          |
+| `msword-senior`     | MS Word (Senior)     | TBD       | Advanced Word features, mail merge, automation     |
 
 ## How to Import a Question Bank
 

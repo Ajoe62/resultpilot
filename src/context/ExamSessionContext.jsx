@@ -1,5 +1,6 @@
 import {
   doc,
+  getDoc,
   serverTimestamp,
   setDoc,
 } from "firebase/firestore";
@@ -15,6 +16,36 @@ import {
 
 const STORAGE_KEY = "resultpilot.session";
 const ExamSessionContext = createContext(null);
+
+async function getLatestAssessmentConfig(exam) {
+  let latestExam = exam;
+
+  try {
+    if (exam?.id) {
+      const examSnapshot = await getDoc(doc(db, "exams", exam.id));
+
+      if (examSnapshot.exists()) {
+        latestExam = {
+          ...exam,
+          ...examSnapshot.data(),
+        };
+      }
+    }
+  } catch {
+    latestExam = exam;
+  }
+
+  const assessmentType = normalizeAssessmentType(
+    latestExam.assessmentType || DEFAULT_ASSESSMENT_TYPE,
+  );
+
+  return {
+    assessmentType,
+    assessmentMaxScore: Number(
+      latestExam.assessmentMaxScore || getAssessmentMaxScore(assessmentType),
+    ),
+  };
+}
 
 export function ExamSessionProvider({ children }) {
   const [session, setSession] = useState(null);
@@ -133,12 +164,8 @@ export function ExamSessionProvider({ children }) {
       const percentage = total ? Math.round((score / total) * 100) : 0;
       const timeTaken = Math.round((submittedAtMs - session.startedAt) / 1000);
       const passed = percentage >= session.exam.passmark;
-      const assessmentType = normalizeAssessmentType(
-        session.exam.assessmentType || DEFAULT_ASSESSMENT_TYPE,
-      );
-      const assessmentMaxScore = Number(
-        session.exam.assessmentMaxScore || getAssessmentMaxScore(assessmentType),
-      );
+      const { assessmentType, assessmentMaxScore } =
+        await getLatestAssessmentConfig(session.exam);
 
       result = {
         id: session.sessionId,
