@@ -247,6 +247,23 @@ a {
   font-weight: 600;
 }
 
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.dialog-card {
+  width: min(100%, 560px);
+  max-height: min(720px, calc(100vh - 2rem));
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
 .exam-layout {
   grid-template-columns: minmax(0, 2fr) minmax(280px, 0.9fr);
   align-items: start;

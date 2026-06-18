@@ -110,9 +110,11 @@ async function hasActiveExamConflict({ subject, pin, excludeExamId = "" }) {
 
 export default function ManageExamsPage() {
   const [form, setForm] = useState(INITIAL_FORM);
+  const [editingExamId, setEditingExamId] = useState("");
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -139,9 +141,34 @@ export default function ManageExamsPage() {
     return unsubscribe;
   }, []);
 
-  const handleCreateExam = async (event) => {
+  const resetExamForm = () => {
+    setForm(INITIAL_FORM);
+    setEditingExamId("");
+    setError("");
+    setStatus("");
+  };
+
+  const startEditingExam = (exam) => {
+    setError("");
+    setStatus("");
+    setEditingExamId(exam.id);
+    setForm({
+      title: exam.title || "",
+      subject: exam.subject || "",
+      academicSession: exam.academicSession || getDefaultAcademicSession(),
+      term: exam.term || TERMS[0],
+      duration: Number(exam.duration || 30),
+      pin: exam.pin || "",
+      passmark: Number(exam.passmark || 50),
+      assessmentType: exam.assessmentType || DEFAULT_ASSESSMENT_TYPE,
+      isActive: exam.isActive !== false,
+    });
+  };
+
+  const handleSaveExam = async (event) => {
     event.preventDefault();
     setError("");
+    setStatus("");
     setSubmitting(true);
 
     try {
@@ -152,7 +179,7 @@ export default function ManageExamsPage() {
       }
 
       if (form.isActive) {
-        if (await hasActiveExamConflict(form)) {
+        if (await hasActiveExamConflict({ ...form, excludeExamId: editingExamId })) {
           setError(
             "An active exam already uses that subject and PIN. Deactivate it or change the PIN.",
           );
@@ -160,7 +187,7 @@ export default function ManageExamsPage() {
         }
       }
 
-      await addDoc(collection(db, "exams"), {
+      const examPayload = {
         title: form.title.trim(),
         subject: form.subject.trim(),
         subjectKey: normalizeLookupKey(form.subject),
@@ -173,40 +200,60 @@ export default function ManageExamsPage() {
         assessmentType: form.assessmentType,
         assessmentMaxScore: getAssessmentMaxScore(form.assessmentType),
         isActive: form.isActive,
-        isArchived: false,
-        createdAt: serverTimestamp(),
-      });
+      };
+
+      if (editingExamId) {
+        await updateDoc(doc(db, "exams", editingExamId), {
+          ...examPayload,
+          updatedAt: serverTimestamp(),
+        });
+        setStatus("Exam updated. Existing submitted results were left unchanged.");
+      } else {
+        await addDoc(collection(db, "exams"), {
+          ...examPayload,
+          isArchived: false,
+          createdAt: serverTimestamp(),
+        });
+        setStatus("Exam created.");
+      }
+
       setForm(INITIAL_FORM);
-    } catch (creationError) {
-      setError(creationError.message || "Unable to create exam.");
+      setEditingExamId("");
+    } catch (saveError) {
+      setError(saveError.message || "Unable to save exam.");
     } finally {
       setSubmitting(false);
     }
   };
 
+  const duplicateExam = (exam) => {
+    setError("");
+    setStatus("");
+    setEditingExamId("");
+    setForm({
+      title: `${exam.title || "Exam"} Copy`,
+      subject: exam.subject || "",
+      academicSession: exam.academicSession || getDefaultAcademicSession(),
+      term: exam.term || TERMS[0],
+      duration: Number(exam.duration || 30),
+      pin: "",
+      passmark: Number(exam.passmark || 50),
+      assessmentType: exam.assessmentType || DEFAULT_ASSESSMENT_TYPE,
+      isActive: false,
+    });
+  };
+
   const updateAssessmentType = async (exam, assessmentType) => {
     setError("");
+    setStatus("");
 
     try {
-      const assessmentMaxScore = getAssessmentMaxScore(assessmentType);
-
       await updateDoc(doc(db, "exams", exam.id), {
         assessmentType,
-        assessmentMaxScore,
+        assessmentMaxScore: getAssessmentMaxScore(assessmentType),
+        updatedAt: serverTimestamp(),
       });
-
-      const resultsSnapshot = await getDocs(
-        query(collection(db, "results"), where("examId", "==", exam.id)),
-      );
-
-      await Promise.all(
-        resultsSnapshot.docs.map((resultDocument) =>
-          updateDoc(doc(db, "results", resultDocument.id), {
-            assessmentType,
-            assessmentMaxScore,
-          }),
-        ),
-      );
+      setStatus("Assessment type updated for future submissions only.");
     } catch (updateError) {
       setError(updateError.message || "Unable to update assessment type.");
     }
@@ -214,6 +261,7 @@ export default function ManageExamsPage() {
 
   const toggleExamStatus = async (exam) => {
     setError("");
+    setStatus("");
 
     try {
       if (!exam.isActive) {
@@ -233,6 +281,7 @@ export default function ManageExamsPage() {
 
       await updateDoc(doc(db, "exams", exam.id), {
         isActive: !exam.isActive,
+        updatedAt: serverTimestamp(),
       });
     } catch (updateError) {
       setError(updateError.message || "Unable to update exam status.");
@@ -241,12 +290,17 @@ export default function ManageExamsPage() {
 
   const deleteExam = async (examId) => {
     setError("");
+    setStatus("");
 
     try {
       await updateDoc(doc(db, "exams", examId), {
         isActive: false,
         isArchived: true,
+        updatedAt: serverTimestamp(),
       });
+      if (editingExamId === examId) {
+        resetExamForm();
+      }
     } catch (deleteError) {
       setError(deleteError.message || "Unable to archive exam.");
     }
@@ -260,7 +314,16 @@ export default function ManageExamsPage() {
       </div>
 
       <div className="admin-grid">
-        <form className="card form-card" onSubmit={handleCreateExam}>
+        <form className="card form-card" onSubmit={handleSaveExam}>
+          <div className="section-heading">
+            <h3>{editingExamId ? "Edit Exam" : "Create Exam"}</h3>
+            <p>
+              {editingExamId
+                ? "Changes apply to future sessions. Existing submitted results stay unchanged."
+                : "Create a new assessment session."}
+            </p>
+          </div>
+
           <label className="field">
             <span>Exam Title</span>
             <input
@@ -380,10 +443,23 @@ export default function ManageExamsPage() {
           </label>
 
           {error ? <p className="form-error">{error}</p> : null}
+          {status ? <p className="muted-text">{status}</p> : null}
 
-          <button className="primary-button" disabled={submitting} type="submit">
-            {submitting ? "Saving..." : "Create Exam"}
-          </button>
+          <div className="button-row">
+            <button className="primary-button" disabled={submitting} type="submit">
+              {submitting ? "Saving..." : editingExamId ? "Save Changes" : "Create Exam"}
+            </button>
+            {editingExamId ? (
+              <button
+                className="secondary-button"
+                disabled={submitting}
+                onClick={resetExamForm}
+                type="button"
+              >
+                Cancel Edit
+              </button>
+            ) : null}
+          </div>
         </form>
 
         <div className="card list-card">
@@ -413,6 +489,20 @@ export default function ManageExamsPage() {
                       </option>
                     ))}
                   </select>
+                  <button
+                    className="secondary-button"
+                    onClick={() => startEditingExam(exam)}
+                    type="button"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="secondary-button"
+                    onClick={() => duplicateExam(exam)}
+                    type="button"
+                  >
+                    Copy
+                  </button>
                   <button
                     className="secondary-button"
                     onClick={() => toggleExamStatus(exam)}

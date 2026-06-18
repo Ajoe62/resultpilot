@@ -1,14 +1,13 @@
 import {
   addDoc,
   collection,
-  deleteDoc,
-  doc,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
 } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
+import ResultResetDialog from "../../components/admin/ResultResetDialog";
 import {
   ASSESSMENT_TYPES,
   DEFAULT_ASSESSMENT_TYPE,
@@ -17,7 +16,9 @@ import {
 } from "../../lib/assessmentTypes";
 import { db } from "../../lib/firebase";
 import {
+  downloadAllTermResultsDoc,
   downloadTermResultDoc,
+  printAllTermResultsPdf,
   printTermResultPdf,
 } from "../../lib/resultExports";
 import { buildTermResultModel } from "../../lib/termResultData";
@@ -79,6 +80,7 @@ export default function ResultsDashboardPage() {
     daysAttended: "",
     daysAbsent: "",
   });
+  const [resetTarget, setResetTarget] = useState(null);
 
   useEffect(() => {
     const handleSnapshotError = (label, snapshotError) => {
@@ -212,6 +214,43 @@ export default function ResultsDashboardPage() {
   const model = sourceResult
     ? buildTermResultModel(sourceResult, results, manualScores)
     : null;
+  const bulkResultSheets = useMemo(() => {
+    if (!filters.schoolId || !filters.academicSession || !filters.term) return [];
+
+    return studentOptions
+      .map((student) => {
+        const studentSourceResult = createSourceResult(student, filters);
+        const studentModel = buildTermResultModel(
+          studentSourceResult,
+          results,
+          manualScores,
+        );
+
+        if (!studentModel.subjects.length) return null;
+
+        const schoolData =
+          schools.find((school) => school.id === studentSourceResult.schoolId) || {};
+        const termNotesEntry = termNotes.find(
+          (termNote) =>
+            termNote.studentId === studentSourceResult.studentId &&
+            termNote.academicSession === studentSourceResult.academicSession &&
+            termNote.term === studentSourceResult.term,
+        );
+
+        return {
+          sourceResult: {
+            ...studentSourceResult,
+            school: schoolData.name || studentSourceResult.school,
+          },
+          allResults: results,
+          manualScores,
+          schoolData,
+          termNotes: termNotesEntry?.notes || "",
+          attendance: {},
+        };
+      })
+      .filter(Boolean);
+  }, [filters, manualScores, results, schools, studentOptions, termNotes]);
   const matchingManualScores = manualScores.filter(
     (score) =>
       sourceResult &&
@@ -220,6 +259,15 @@ export default function ResultsDashboardPage() {
       (score.schoolId || score.school) === (sourceResult.schoolId || sourceResult.school) &&
       score.academicSession === sourceResult.academicSession &&
       score.term === sourceResult.term,
+  );
+  const matchingAutomatedResults = results.filter(
+    (result) =>
+      sourceResult &&
+      (result.studentId || result.studentName) ===
+      (sourceResult.studentId || sourceResult.studentName) &&
+      (result.schoolId || result.school) === (sourceResult.schoolId || sourceResult.school) &&
+      result.academicSession === sourceResult.academicSession &&
+      result.term === sourceResult.term,
   );
 
   const updateFilter = (name, value) => {
@@ -367,6 +415,60 @@ export default function ResultsDashboardPage() {
     }
   };
 
+  const handleDownloadAllDocs = () => {
+    try {
+      downloadAllTermResultsDoc(bulkResultSheets);
+      setStatus(`Downloaded ${bulkResultSheets.length} student result sheet(s).`);
+    } catch (error) {
+      setStatus(error?.message || "Unable to download all student result sheets.");
+    }
+  };
+
+  const handlePrintAllPdf = () => {
+    try {
+      printAllTermResultsPdf(bulkResultSheets);
+      setStatus(`Opened ${bulkResultSheets.length} student result sheet(s) for PDF export.`);
+    } catch (error) {
+      setStatus(error?.message || "Unable to open all student result sheets for PDF export.");
+    }
+  };
+
+  const openAutomatedReset = (result) => {
+    setStatus("");
+    setResetTarget({
+      defaultMode: "automated",
+      resultId: result.id,
+      studentId: result.studentId || "",
+      studentName: result.studentName || "",
+      academicSession: result.academicSession || "",
+      term: result.term || "",
+      subject: result.subject || "",
+      assessmentType: result.assessmentType || DEFAULT_ASSESSMENT_TYPE,
+      scoreLabel: `${result.examTitle || result.subject}: ${result.score}/${result.total} (${result.percentage}%)`,
+    });
+  };
+
+  const openManualReset = (score) => {
+    setStatus("");
+    setResetTarget({
+      defaultMode: "manual",
+      manualScoreId: score.id,
+      studentId: score.studentId || "",
+      studentName: score.studentName || "",
+      academicSession: score.academicSession || "",
+      term: score.term || "",
+      subject: score.subject || "",
+      assessmentType: score.assessmentType || DEFAULT_ASSESSMENT_TYPE,
+      scoreLabel: `${score.subject}: ${score.score}/${score.maxScore || getAssessmentMaxScore(score.assessmentType)}`,
+    });
+  };
+
+  const handleResetCompleted = (summary) => {
+    setStatus(
+      `Reset complete. Removed ${summary.deletedAutomatedResults || 0} automated result(s) and ${summary.deletedManualScores || 0} manual score(s).`,
+    );
+  };
+
   return (
     <section className="admin-section">
       <div className="section-heading">
@@ -506,6 +608,22 @@ export default function ResultsDashboardPage() {
           <button className="primary-button" disabled={!model} onClick={handleDownloadDoc} type="button">
             Full DOC
           </button>
+          <button
+            className="secondary-button"
+            disabled={!bulkResultSheets.length}
+            onClick={handlePrintAllPdf}
+            type="button"
+          >
+            All Students PDF
+          </button>
+          <button
+            className="primary-button"
+            disabled={!bulkResultSheets.length}
+            onClick={handleDownloadAllDocs}
+            type="button"
+          >
+            All Students DOC
+          </button>
         </div>
       </div>
 
@@ -624,6 +742,37 @@ export default function ResultsDashboardPage() {
 
       <div className="card list-card">
         <div className="section-heading">
+          <h3>Automated Exam Results In This Result</h3>
+          <p>{matchingAutomatedResults.length} submitted exam entries</p>
+        </div>
+        <div className="stack-list">
+          {matchingAutomatedResults.map((result) => (
+            <article className="stack-list__item" key={result.id}>
+              <div>
+                <strong>{result.subject}</strong>
+                <p>
+                  {result.examTitle || "Exam"} - {result.score}/{result.total} (
+                  {result.percentage}%)
+                </p>
+                <small>{formatDateValue(result.submittedAt)} - {result.assessmentType || "exam"}</small>
+              </div>
+              <button
+                className="danger-button"
+                onClick={() => openAutomatedReset(result)}
+                type="button"
+              >
+                Reset
+              </button>
+            </article>
+          ))}
+          {!matchingAutomatedResults.length ? (
+            <p className="muted-text">No automated exam results for this selected result.</p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="card list-card">
+        <div className="section-heading">
           <h3>Manual Scores In This Result</h3>
           <p>{matchingManualScores.length} manual score entries</p>
         </div>
@@ -640,10 +789,10 @@ export default function ResultsDashboardPage() {
               </div>
               <button
                 className="danger-button"
-                onClick={() => deleteDoc(doc(db, "manualScores", score.id))}
+                onClick={() => openManualReset(score)}
                 type="button"
               >
-                Delete
+                Reset
               </button>
             </article>
           ))}
@@ -652,6 +801,14 @@ export default function ResultsDashboardPage() {
           ) : null}
         </div>
       </div>
+
+      <ResultResetDialog
+        defaultMode={resetTarget?.defaultMode}
+        isOpen={Boolean(resetTarget)}
+        onClose={() => setResetTarget(null)}
+        onCompleted={handleResetCompleted}
+        target={resetTarget}
+      />
     </section>
   );
 }

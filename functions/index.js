@@ -210,6 +210,44 @@ async function assertAdmin(uid) {
   if (!adminSnapshot.exists) {
     throw new HttpsError("permission-denied", "Admin access is required.");
   }
+
+  return adminSnapshot.data() || {};
+}
+
+function getStudentMatchQuery(collectionRef, target) {
+  if (target.studentId) {
+    return collectionRef.where("studentId", "==", target.studentId);
+  }
+
+  if (target.studentName) {
+    return collectionRef.where("studentName", "==", target.studentName);
+  }
+
+  throw new HttpsError("invalid-argument", "Student is required for reset.");
+}
+
+function matchesResetTarget(data, target) {
+  return ["academicSession", "term", "subject", "assessmentType"].every(
+    (field) => !target[field] || displayString(data[field]) === target[field],
+  );
+}
+
+function summarizeResetDocument(documentSnapshot) {
+  const data = documentSnapshot.data() || {};
+
+  return {
+    id: documentSnapshot.id,
+    studentName: displayString(data.studentName),
+    studentId: displayString(data.studentId),
+    subject: displayString(data.subject),
+    academicSession: displayString(data.academicSession),
+    term: displayString(data.term),
+    assessmentType: displayString(data.assessmentType),
+    score: Number(data.score || 0),
+    total: Number(data.total || data.maxScore || data.assessmentMaxScore || 0),
+    examId: displayString(data.examId),
+    examTitle: displayString(data.examTitle),
+  };
 }
 
 function serializeActiveDocument(documentSnapshot, fields) {
@@ -528,4 +566,111 @@ exports.deleteExam = onCall(getCallableOptions(), async (request) => {
   await db.recursiveDelete(examRef);
 
   return { success: true };
+});
+
+exports.resetStudentResult = onCall(getCallableOptions(), async (request) => {
+  const adminProfile = await assertAdmin(request.auth?.uid);
+  const mode = cleanString(request.data?.mode);
+  const reason = cleanString(request.data?.reason);
+  const targetPayload = request.data?.target || {};
+  const assessmentType = cleanString(targetPayload.assessmentType);
+  const target = {
+    resultId: cleanString(targetPayload.resultId),
+    manualScoreId: cleanString(targetPayload.manualScoreId),
+    studentId: cleanString(targetPayload.studentId),
+    studentName: cleanString(targetPayload.studentName),
+    academicSession: cleanString(targetPayload.academicSession),
+    term: cleanString(targetPayload.term),
+    subject: cleanString(targetPayload.subject),
+    assessmentType: assessmentType ? normalizeAssessmentType(assessmentType) : "",
+  };
+
+  if (!["automated", "manual", "both"].includes(mode)) {
+    throw new HttpsError("invalid-argument", "Choose a valid reset type.");
+  }
+
+  if (reason.length < 5) {
+    throw new HttpsError("invalid-argument", "Provide a reset reason.");
+  }
+
+  const shouldResetAutomated = mode === "automated" || mode === "both";
+  const shouldResetManual = mode === "manual" || mode === "both";
+  const automatedSnapshots = [];
+  const manualSnapshots = [];
+
+  if (shouldResetAutomated) {
+    if (target.resultId) {
+      const resultSnapshot = await db.collection("results").doc(target.resultId).get();
+      if (resultSnapshot.exists) {
+        automatedSnapshots.push(resultSnapshot);
+      }
+    } else {
+      const resultsSnapshot = await getStudentMatchQuery(
+        db.collection("results"),
+        target,
+      ).get();
+      automatedSnapshots.push(
+        ...resultsSnapshot.docs.filter((snapshot) =>
+          matchesResetTarget(snapshot.data(), target),
+        ),
+      );
+    }
+  }
+
+  if (shouldResetManual) {
+    if (target.manualScoreId) {
+      const manualScoreSnapshot = await db
+        .collection("manualScores")
+        .doc(target.manualScoreId)
+        .get();
+      if (manualScoreSnapshot.exists) {
+        manualSnapshots.push(manualScoreSnapshot);
+      }
+    } else {
+      const manualScoresSnapshot = await getStudentMatchQuery(
+        db.collection("manualScores"),
+        target,
+      ).get();
+      manualSnapshots.push(
+        ...manualScoresSnapshot.docs.filter((snapshot) =>
+          matchesResetTarget(snapshot.data(), target),
+        ),
+      );
+    }
+  }
+
+  if (!automatedSnapshots.length && !manualSnapshots.length) {
+    throw new HttpsError("not-found", "No matching result records were found.");
+  }
+
+  const batch = db.batch();
+  for (const resultSnapshot of automatedSnapshots) {
+    batch.delete(resultSnapshot.ref);
+    batch.delete(db.collection("examSessions").doc(resultSnapshot.id));
+  }
+
+  for (const manualSnapshot of manualSnapshots) {
+    batch.delete(manualSnapshot.ref);
+  }
+
+  const auditRef = db.collection("adminAuditLogs").doc();
+  batch.set(auditRef, {
+    action: "result_reset",
+    mode,
+    reason,
+    target,
+    adminUid: request.auth.uid,
+    adminEmail: request.auth.token?.email || displayString(adminProfile.email),
+    automatedResults: automatedSnapshots.map(summarizeResetDocument),
+    manualScores: manualSnapshots.map(summarizeResetDocument),
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  await batch.commit();
+
+  return {
+    success: true,
+    deletedAutomatedResults: automatedSnapshots.length,
+    deletedManualScores: manualSnapshots.length,
+  };
 });
