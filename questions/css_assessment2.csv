@@ -1,0 +1,21 @@
+questionText,optionA,optionB,optionC,optionD,correctAnswer
+What is the main job of CSS?,To structure page content,To style HTML elements,To store data,To run calculations,B
+Which line shows correct CSS syntax?,selector: property value,selector { property: value; },property { selector: value; },value { property: selector; },B
+In a CSS rule what does the selector do?,Defines the colour,Targets which elements to style,Ends the rule,Holds the value,B
+Which way of applying CSS is considered best practice?,Inline style,Internal style tag,External file,No styling,C
+Which tag links an external CSS file to a page?,<style>,<css>,<link rel='stylesheet' href='style.css'>,<script>,C
+Which selector targets a class named card?,card,#card,.card,*card,C
+Which symbol is used to select an element by its id?,. (dot),# (hash),@ (at),& (and),B
+Which property changes the text colour?,background-color,color,font-color,text-style,B
+Which property changes the background colour of an element?,color,background-color,fill,bg,B
+In the CSS box model which layer is the innermost?,Margin,Border,Padding,Content,D
+What is padding in the box model?,Space outside the element,Space inside between content and border,The element border,The text colour,B
+What is margin in the box model?,Inner space around content,The border thickness,Outer space that pushes other elements away,The background,C
+Which border styles were shown as valid?,solid dashed or dotted,thick or thin only,round or square,bold or light,A
+Which property controls how big the text is?,font-weight,text-align,font-size,line-height,C
+Which display value makes an element take the full width?,inline,block,none,flex,B
+Which value turns an element into a flex container?,display: block,display: inline,display: flex,display: grid,C
+In Flexbox which property aligns items along the main axis?,align-items,justify-content,text-align,float,B
+In Flexbox which property aligns items along the cross axis?,justify-content,align-items,gap,order,B
+Which property creates equal space between flex items?,padding,margin,gap,border,C
+Which feature lets a layout adapt to different screen sizes?,media queries,inline styles,id selectors,comments,A

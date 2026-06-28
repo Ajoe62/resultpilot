@@ -1,0 +1,21 @@
+questionText,optionA,optionB,optionC,optionD,correctAnswer
+What is the main job of the <form> element?,To style a page,To hold fields and send them on submit,To create a heading,To link to another page,B
+Which tag creates a single-line box where a user can type?,<label>,<button>,<input>,<textarea>,C
+What does type='password' do to an input?,Makes it required,Hides the typed characters as dots,Turns it into a button,Adds a calendar,B
+Which attribute labels a field's data so the server knows what it is?,placeholder,id,value,name,D
+What does the placeholder attribute show?,A required error,Faint hint text inside the box,The submitted value,A dropdown list,B
+Which attribute connects a <label> to its input?,name,for,type,value,B
+The label's for attribute must match which attribute on the input?,name,id,type,class,B
+Which input type automatically checks for an @ sign?,type='text',type='tel',type='email',type='number',C
+Which input type pops up a date picker?,type='time',type='number',type='date',type='text',C
+Which control lets a user choose any number of options?,Radio button,Checkbox,Dropdown,Submit button,B
+Which control lets a user choose exactly one option in a group?,Checkbox,Textarea,Radio button,Select,C
+For radio buttons to work as a pick-one group they must share the same?,id,value,name,type,C
+Which element creates a dropdown menu?,<dropdown>,<select>,<option>,<list>,B
+Which element is placed inside <select> for each choice?,<item>,<choice>,<option>,<li>,C
+Which element gives a large multi-line text box?,<input>,<bigtext>,<textarea>,<select>,C
+Which attribute sets the address where form data is sent?,method,action,target,name,B
+Which method puts the submitted data in the visible web address?,post,send,get,hidden,C
+Which method should be used for passwords and private data?,get,post,view,open,B
+Which attribute makes a field impossible to leave empty before submitting?,locked,required,must,checked,B
+Which element groups related fields under a visible title?,<group>,<section>,<fieldset>,<box>,C
