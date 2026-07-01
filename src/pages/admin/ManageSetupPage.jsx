@@ -36,6 +36,10 @@ function getClassName(classes, classId) {
   return classes.find((classItem) => classItem.id === classId)?.name || "Unknown class";
 }
 
+function normalizeClassName(name) {
+  return name.replace(/\s+/g, "").toLowerCase();
+}
+
 export default function ManageSetupPage() {
   const [schools, setSchools] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -130,6 +134,17 @@ export default function ManageSetupPage() {
     const name = classForm.name.trim();
     if (!classForm.schoolId || !name) {
       setError("Select a school and enter a class name.");
+      return;
+    }
+
+    const normalized = normalizeClassName(name);
+    const duplicate = classes.some(
+      (classItem) =>
+        classItem.schoolId === classForm.schoolId &&
+        normalizeClassName(classItem.name || "") === normalized,
+    );
+    if (duplicate) {
+      setError("Class already exists, add students instead.");
       return;
     }
 

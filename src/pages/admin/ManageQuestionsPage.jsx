@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { db } from "../../lib/firebase";
+import AiQuestionGenerator from "../../components/admin/AiQuestionGenerator";
 
 const INITIAL_FORM = {
   questionText: "",
@@ -176,12 +177,21 @@ export default function ManageQuestionsPage() {
     await deleteDoc(doc(db, "exams", selectedExamId, "questions", questionId));
   };
 
+  const selectedExam = exams.find((exam) => exam.id === selectedExamId);
+
   return (
     <section className="admin-section">
       <div className="section-heading">
         <h2>Manage Questions</h2>
         <p>Attach multiple-choice questions to any exam.</p>
       </div>
+
+      {selectedExamId ? (
+        <AiQuestionGenerator
+          selectedExamId={selectedExamId}
+          defaultSubject={selectedExam?.subject}
+        />
+      ) : null}
 
       <div className="admin-grid">
         <div className="card form-card">
