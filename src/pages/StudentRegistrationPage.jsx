@@ -327,7 +327,7 @@ export default function StudentRegistrationPage() {
             Students join with an access PIN. Tutors manage exams, questions,
             and results from a single dashboard.
           </p>
-          <Link className="secondary-button" to="/study">
+          <Link className="primary-button" to="/study">
             Open Study Assistant
           </Link>
         </div>

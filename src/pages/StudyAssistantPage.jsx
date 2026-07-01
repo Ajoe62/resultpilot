@@ -95,35 +95,36 @@ export default function StudyAssistantPage() {
 
   return (
     <div className="page-shell">
-      <section className="hero-card">
-        <div className="hero-copy">
+      <div className="study-header">
+        <div>
           <span className="eyebrow">ResultPilot</span>
           <h1>Study Assistant</h1>
           <p>
             Ask questions about your course material and get answers grounded in the
             document your tutor uploaded — not random internet facts.
           </p>
-          <Link className="secondary-button" to="/">
-            Back to exam
-          </Link>
         </div>
+        <Link className="secondary-button" to="/">
+          Back to exam
+        </Link>
+      </div>
 
-        <div className="card form-card">
-          <label className="field">
-            <span>Subject</span>
-            <select value={selectedExamId} onChange={handleExamChange}>
-              <option value="" disabled>
-                {exams.length ? "Select a subject" : "No study material available yet"}
+      <section className="card study-card">
+        <label className="field">
+          <span>Subject</span>
+          <select value={selectedExamId} onChange={handleExamChange}>
+            <option value="" disabled>
+              {exams.length ? "Select a subject" : "No study material available yet"}
+            </option>
+            {exams.map((exam) => (
+              <option key={exam.id} value={exam.id}>
+                {exam.subject} - {exam.studyDocumentTitle || exam.title}
               </option>
-              {exams.map((exam) => (
-                <option key={exam.id} value={exam.id}>
-                  {exam.subject} - {exam.studyDocumentTitle || exam.title}
-                </option>
-              ))}
-            </select>
-          </label>
+            ))}
+          </select>
+        </label>
 
-          <div className="chat-thread" ref={threadRef}>
+        <div className="chat-thread" ref={threadRef}>
             {messages.length === 0 ? (
               <p className="muted-text">
                 {selectedExam
@@ -173,7 +174,6 @@ export default function StudyAssistantPage() {
               Ask
             </button>
           </form>
-        </div>
       </section>
     </div>
   );

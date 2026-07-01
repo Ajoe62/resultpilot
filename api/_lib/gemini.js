@@ -5,7 +5,9 @@
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 export const DEFAULT_MODEL = "gemini-2.5-flash";
-export const DEFAULT_EMBED_MODEL = "text-embedding-004";
+export const DEFAULT_EMBED_MODEL = "gemini-embedding-001";
+// gemini-embedding-001 defaults to 3072 dims; we request 768 to keep Firestore
+// shards small. Query and stored vectors must use the same value.
 export const EMBED_DIMENSIONS = 768;
 // Gemini caps batchEmbedContents at 100 requests per call.
 const EMBED_BATCH_LIMIT = 100;
@@ -113,6 +115,7 @@ export async function embedTexts(texts, opts = {}) {
           model: modelPath,
           content: { parts: [{ text }] },
           taskType,
+          outputDimensionality: EMBED_DIMENSIONS,
         })),
       }),
     });

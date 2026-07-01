@@ -27,11 +27,17 @@ export async function requireAdmin(req) {
     throw new AuthError("Missing authorization token.");
   }
 
+  // Initialize outside the verify try so a missing/invalid service account
+  // surfaces as its own clear error instead of being mislabeled a token error.
+  const adminApp = getAdmin();
+
   let decoded;
   try {
-    decoded = await getAdmin().auth().verifyIdToken(token);
-  } catch {
-    throw new AuthError("Invalid or expired authorization token.");
+    decoded = await adminApp.auth().verifyIdToken(token);
+  } catch (verifyError) {
+    throw new AuthError(
+      `Invalid or expired authorization token: ${verifyError?.message || verifyError}`,
+    );
   }
 
   const adminDoc = await getDb().collection("admins").doc(decoded.uid).get();
