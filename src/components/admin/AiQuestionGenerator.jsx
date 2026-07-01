@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
-import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  writeBatch,
+} from "firebase/firestore";
 import { db } from "../../lib/firebase";
+import { generateFromDocument } from "../../lib/apiClient";
 
 const ANSWER_LETTERS = ["A", "B", "C", "D"];
 const DIFFICULTIES = ["easy", "medium", "hard"];
@@ -18,6 +27,9 @@ const INITIAL_FORM = {
 // question before a single batched write to the selected exam's questions.
 export default function AiQuestionGenerator({ selectedExamId, defaultSubject }) {
   const [form, setForm] = useState({ ...INITIAL_FORM, subject: defaultSubject || "" });
+  const [sourceMode, setSourceMode] = useState("topic");
+  const [documents, setDocuments] = useState([]);
+  const [documentId, setDocumentId] = useState("");
   const [drafts, setDrafts] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -28,6 +40,20 @@ export default function AiQuestionGenerator({ selectedExamId, defaultSubject }) 
   useEffect(() => {
     setForm((current) => ({ ...current, subject: defaultSubject || "" }));
   }, [defaultSubject]);
+
+  // Uploaded study documents available as generation sources.
+  useEffect(() => {
+    const documentsQuery = query(
+      collection(db, "studyDocuments"),
+      orderBy("createdAt", "desc"),
+    );
+    const unsubscribe = onSnapshot(documentsQuery, (snapshot) => {
+      setDocuments(
+        snapshot.docs.map((document) => ({ id: document.id, ...document.data() })),
+      );
+    });
+    return unsubscribe;
+  }, []);
 
   const updateForm = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -64,34 +90,48 @@ export default function AiQuestionGenerator({ selectedExamId, defaultSubject }) 
     setStatus("");
 
     const count = Number(form.count);
-    if (!form.subject.trim() || !form.topic.trim()) {
+    if (!Number.isInteger(count) || count < MIN_COUNT || count > MAX_COUNT) {
+      setError(`Count must be a whole number between ${MIN_COUNT} and ${MAX_COUNT}.`);
+      return;
+    }
+    if (sourceMode === "topic" && (!form.subject.trim() || !form.topic.trim())) {
       setError("Subject and topic are required.");
       return;
     }
-    if (!Number.isInteger(count) || count < MIN_COUNT || count > MAX_COUNT) {
-      setError(`Count must be a whole number between ${MIN_COUNT} and ${MAX_COUNT}.`);
+    if (sourceMode === "document" && !documentId) {
+      setError("Choose a study document to generate from.");
       return;
     }
 
     setGenerating(true);
     try {
-      const response = await fetch("/api/generate-questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subject: form.subject.trim(),
-          topic: form.topic.trim(),
+      let questions;
+      if (sourceMode === "document") {
+        const payload = await generateFromDocument({
+          documentId,
           difficulty: form.difficulty,
           count,
-        }),
-      });
-
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload.error || `Generation failed (${response.status}).`);
+          topic: form.topic.trim(),
+        });
+        questions = Array.isArray(payload.questions) ? payload.questions : [];
+      } else {
+        const response = await fetch("/api/generate-questions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subject: form.subject.trim(),
+            topic: form.topic.trim(),
+            difficulty: form.difficulty,
+            count,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload.error || `Generation failed (${response.status}).`);
+        }
+        questions = Array.isArray(payload.questions) ? payload.questions : [];
       }
 
-      const questions = Array.isArray(payload.questions) ? payload.questions : [];
       if (!questions.length) {
         throw new Error("No questions were returned. Try again or adjust your inputs.");
       }
@@ -177,25 +217,71 @@ export default function AiQuestionGenerator({ selectedExamId, defaultSubject }) 
       </div>
 
       <form onSubmit={handleGenerate}>
-        <div className="field-grid">
-          <label className="field">
-            <span>Subject</span>
-            <input
-              value={form.subject}
-              onChange={(event) => updateForm("subject", event.target.value)}
-              placeholder="HTML"
-            />
-          </label>
+        <label className="field">
+          <span>Source</span>
+          <select
+            value={sourceMode}
+            onChange={(event) => setSourceMode(event.target.value)}
+          >
+            <option value="topic">Topic (general knowledge)</option>
+            <option value="document">Uploaded document (grounded)</option>
+          </select>
+        </label>
 
-          <label className="field">
-            <span>Topic</span>
-            <input
-              value={form.topic}
-              onChange={(event) => updateForm("topic", event.target.value)}
-              placeholder="Semantic elements"
-            />
-          </label>
-        </div>
+        {sourceMode === "topic" ? (
+          <div className="field-grid">
+            <label className="field">
+              <span>Subject</span>
+              <input
+                value={form.subject}
+                onChange={(event) => updateForm("subject", event.target.value)}
+                placeholder="HTML"
+              />
+            </label>
+
+            <label className="field">
+              <span>Topic</span>
+              <input
+                value={form.topic}
+                onChange={(event) => updateForm("topic", event.target.value)}
+                placeholder="Semantic elements"
+              />
+            </label>
+          </div>
+        ) : (
+          <div className="field-grid">
+            <label className="field">
+              <span>Document</span>
+              <select
+                value={documentId}
+                onChange={(event) => setDocumentId(event.target.value)}
+              >
+                <option value="">Select a document</option>
+                {documents.map((document) => (
+                  <option key={document.id} value={document.id}>
+                    {document.title}
+                    {document.subject ? ` (${document.subject})` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field">
+              <span>Focus Topic (optional)</span>
+              <input
+                value={form.topic}
+                onChange={(event) => updateForm("topic", event.target.value)}
+                placeholder="e.g. photosynthesis"
+              />
+            </label>
+          </div>
+        )}
+
+        {sourceMode === "document" && !documents.length ? (
+          <p className="muted-text">
+            No documents yet. Upload one in Study Documents first.
+          </p>
+        ) : null}
 
         <div className="field-grid">
           <label className="field">

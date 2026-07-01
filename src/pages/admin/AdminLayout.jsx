@@ -5,6 +5,7 @@ const NAV_ITEMS = [
   { label: "School Setup", path: "/admin/setup" },
   { label: "Manage Exams", path: "/admin/exams" },
   { label: "Manage Questions", path: "/admin/questions" },
+  { label: "Study Documents", path: "/admin/study-docs" },
   { label: "Results Dashboard", path: "/admin/results" },
   { label: "Student Lookup", path: "/admin/students" },
 ];

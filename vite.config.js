@@ -1,64 +1,73 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
-// Serves the /api/generate-questions serverless route during `vite dev`,
-// so local development does not require the Vercel CLI. In production the
-// same handler runs as a real serverless function (api/generate-questions.js).
-function aiQuestionsDevApi(env) {
+// Serves the /api/* serverless functions during `vite dev` by importing the
+// same handler modules Vercel runs in production, so local development needs
+// no Vercel CLI. Each handler is written Vercel-style (req.body, res.status().json());
+// this adapter provides that shape over Node's raw req/res.
+const DEV_API_ROUTES = new Set([
+  "generate-questions",
+  "generate-from-document",
+  "ingest-document",
+  "rag-query",
+  "delete-document",
+]);
+
+// Server-only vars the handlers read from process.env. loadEnv reads them from
+// .env but does not populate process.env, so we bridge them here (dev only).
+function bridgeServerEnv(env) {
+  for (const key of [
+    "GEMINI_API_KEY",
+    "GEMINI_MODEL",
+    "GEMINI_EMBED_MODEL",
+    "FIREBASE_SERVICE_ACCOUNT",
+  ]) {
+    if (env[key] && !process.env[key]) {
+      process.env[key] = env[key];
+    }
+  }
+}
+
+function serverlessDevApi(env) {
+  bridgeServerEnv(env);
   return {
-    name: "ai-questions-dev-api",
+    name: "serverless-dev-api",
     configureServer(server) {
-      server.middlewares.use("/api/generate-questions", async (req, res) => {
-        if (req.method !== "POST") {
-          res.statusCode = 405;
-          res.setHeader("Allow", "POST");
-          res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify({ error: "Method not allowed. Use POST." }));
-          return;
+      server.middlewares.use("/api", async (req, res) => {
+        const name = (req.url || "").split("?")[0].replace(/^\//, "");
+        if (!DEV_API_ROUTES.has(name)) {
+          return; // fall through to Vite's own handlers / 404
         }
 
-        const sendJson = (status, payload) => {
-          res.statusCode = status;
+        // Adapt Node res to the Vercel-style API the handlers expect.
+        res.status = (code) => {
+          res.statusCode = code;
+          return res;
+        };
+        res.json = (payload) => {
           res.setHeader("Content-Type", "application/json");
           res.end(JSON.stringify(payload));
         };
 
         try {
-          const { generateQuestions, GenerationInputError } = await import(
-            "./api/_lib/generateQuestions.js"
-          );
-
           const chunks = [];
           for await (const chunk of req) {
             chunks.push(chunk);
           }
-          const raw = Buffer.concat(chunks).toString("utf8") || "{}";
-
-          let body;
+          const raw = Buffer.concat(chunks).toString("utf8");
           try {
-            body = JSON.parse(raw);
+            req.body = raw ? JSON.parse(raw) : {};
           } catch {
-            sendJson(400, { error: "Request body must be valid JSON." });
+            res.status(400).json({ error: "Request body must be valid JSON." });
             return;
           }
 
-          try {
-            const questions = await generateQuestions(body, {
-              apiKey: env.GEMINI_API_KEY,
-              model: env.GEMINI_MODEL,
-            });
-            sendJson(200, { questions });
-          } catch (error) {
-            if (error instanceof GenerationInputError) {
-              sendJson(400, { error: error.message });
-              return;
-            }
-            sendJson(502, {
-              error: error?.message || "Failed to generate questions.",
-            });
-          }
+          const module = await import(`./api/${name}.js`);
+          await module.default(req, res);
         } catch (error) {
-          sendJson(500, { error: error?.message || "Internal dev server error." });
+          res.status(500).json({
+            error: error?.message || "Internal dev server error.",
+          });
         }
       });
     },
@@ -71,13 +80,21 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
   return {
-  plugins: [react(), aiQuestionsDevApi(env)],
+  plugins: [react(), serverlessDevApi(env)],
   build: {
     chunkSizeWarningLimit: 700,
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (id.includes("node_modules")) {
+            // Heavy, lazily-imported parsers — keep them in their own chunks
+            // so they only load when a tutor extracts a document.
+            if (id.includes("pdfjs-dist")) {
+              return "vendor_pdfjs";
+            }
+            if (id.includes("mammoth")) {
+              return "vendor_mammoth";
+            }
             if (id.includes("firebase")) {
               return "vendor_firebase";
             }

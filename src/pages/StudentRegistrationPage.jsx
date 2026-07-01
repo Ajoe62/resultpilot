@@ -7,7 +7,7 @@ import {
   where,
 } from "firebase/firestore/lite";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useExamSession } from "../context/ExamSessionContext";
 import { usesFunctionExamFlow } from "../lib/examMode";
 import { cloudFunctions, liteDb } from "../lib/firebase";
@@ -327,6 +327,9 @@ export default function StudentRegistrationPage() {
             Students join with an access PIN. Tutors manage exams, questions,
             and results from a single dashboard.
           </p>
+          <Link className="secondary-button" to="/study">
+            Open Study Assistant
+          </Link>
         </div>
         <form className="card form-card" onSubmit={handleSubmit}>
           <div className="section-heading">

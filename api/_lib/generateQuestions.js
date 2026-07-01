@@ -1,31 +1,25 @@
-// Framework-agnostic core for the AI MCQ generation engine.
-// Used by both the Vercel serverless handler (api/generate-questions.js)
-// and the Vite dev-server middleware (vite.config.js) so the same logic
-// runs locally and in production.
+// Core for the AI MCQ generation engine. Two modes:
+//   - topic mode:  generate from subject + topic (Upgrade 1).
+//   - source mode: generate ONLY from provided source text (Upgrade 2, RAG),
+//                  so a tutor's uploaded document drives the questions.
+// Shared by the serverless handlers and the Vite dev middleware.
+
+import { generateContent } from "./gemini.js";
 
 export const MAX_COUNT = 20;
 export const MIN_COUNT = 1;
 export const DIFFICULTIES = ["easy", "medium", "hard"];
 export const ANSWER_LETTERS = ["A", "B", "C", "D"];
-export const DEFAULT_MODEL = "gemini-2.5-flash";
 
-const GEMINI_BASE_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models";
-
-// Gemini structured-output schema (OpenAPI subset). Guarantees the model
-// returns a JSON array of MCQ objects in the exact shape Firestore expects.
+// Gemini structured-output schema: a JSON array of MCQ objects in the exact
+// shape Firestore expects.
 const RESPONSE_SCHEMA = {
   type: "ARRAY",
   items: {
     type: "OBJECT",
     properties: {
       questionText: { type: "STRING" },
-      options: {
-        type: "ARRAY",
-        items: { type: "STRING" },
-        minItems: 4,
-        maxItems: 4,
-      },
+      options: { type: "ARRAY", items: { type: "STRING" }, minItems: 4, maxItems: 4 },
       correctAnswer: { type: "STRING", enum: ANSWER_LETTERS },
     },
     required: ["questionText", "options", "correctAnswer"],
@@ -33,20 +27,22 @@ const RESPONSE_SCHEMA = {
   },
 };
 
-const SYSTEM_INSTRUCTION = [
+const BASE_RULES = [
   "You are an expert exam author who writes high-quality multiple-choice questions (MCQs).",
   "Follow these rules strictly:",
   "- Produce exactly the requested number of questions.",
   "- Each question has exactly four answer options.",
   "- Exactly one option is correct. 'correctAnswer' is the letter (A, B, C, or D) of the correct option, where A is the first option, B the second, and so on.",
-  "- Distractors (wrong options) must be plausible and relevant but unambiguously incorrect to a knowledgeable reader.",
+  "- Distractors (wrong options) must be plausible and relevant but unambiguously incorrect.",
   "- All four options within a question must be distinct.",
   "- Match the requested difficulty level.",
-  "- Each question must be self-contained and clear. Do not use options like 'All of the above' or 'None of the above'.",
-  "- Do not number the questions or add commentary. Return only data that conforms to the response schema.",
-].join("\n");
+  "- Each question must be self-contained. Do not use 'All of the above' or 'None of the above'.",
+  "- Do not number the questions or add commentary. Return only data conforming to the response schema.",
+];
 
-// Raised for bad caller input (HTTP 400) vs. upstream/model failures (HTTP 502).
+const SOURCE_RULE =
+  "- Base every question ONLY on the provided source material. Do not use outside knowledge, and do not invent facts that are not supported by the source.";
+
 export class GenerationInputError extends Error {
   constructor(message) {
     super(message);
@@ -55,17 +51,12 @@ export class GenerationInputError extends Error {
 }
 
 export function validateGenerationParams(raw = {}) {
-  const subject = String(raw.subject ?? "").trim();
-  const topic = String(raw.topic ?? "").trim();
   const difficulty = String(raw.difficulty ?? "").trim().toLowerCase();
   const count = Number(raw.count);
+  const sourceText = String(raw.sourceText ?? "").trim();
+  const subject = String(raw.subject ?? "").trim();
+  const topic = String(raw.topic ?? "").trim();
 
-  if (!subject) {
-    throw new GenerationInputError("Subject is required.");
-  }
-  if (!topic) {
-    throw new GenerationInputError("Topic is required.");
-  }
   if (!DIFFICULTIES.includes(difficulty)) {
     throw new GenerationInputError(
       `Difficulty must be one of: ${DIFFICULTIES.join(", ")}.`,
@@ -77,18 +68,27 @@ export function validateGenerationParams(raw = {}) {
     );
   }
 
-  return { subject, topic, difficulty, count };
+  if (sourceText) {
+    return { mode: "source", difficulty, count, sourceText, subject, topic };
+  }
+
+  if (!subject) {
+    throw new GenerationInputError("Subject is required.");
+  }
+  if (!topic) {
+    throw new GenerationInputError("Topic is required.");
+  }
+  return { mode: "topic", difficulty, count, subject, topic };
 }
 
-// Mirrors the validation rules enforced in ManageQuestionsPage so a saved
-// AI question is always a valid manual question too.
+// Mirrors ManageQuestionsPage validation so a saved AI question is always a
+// valid manual question too.
 function normalizeQuestion(item, index) {
   const questionText = String(item?.questionText ?? "").trim();
   const options = Array.isArray(item?.options)
     ? item.options.map((option) => String(option ?? "").trim())
     : [];
   const correctAnswer = String(item?.correctAnswer ?? "").trim().toUpperCase();
-
   const position = index + 1;
 
   if (!questionText) {
@@ -103,88 +103,54 @@ function normalizeQuestion(item, index) {
   if (!ANSWER_LETTERS.includes(correctAnswer)) {
     throw new Error(`Generated question ${position} has an invalid correct answer.`);
   }
-
   return { questionText, options, correctAnswer };
 }
 
-function buildUserPrompt({ subject, topic, difficulty, count }) {
-  return [
-    `Subject: ${subject}`,
-    `Topic: ${topic}`,
-    `Difficulty: ${difficulty}`,
-    `Number of questions: ${count}`,
+function buildPrompts(clean) {
+  if (clean.mode === "source") {
+    const system = [...BASE_RULES, SOURCE_RULE].join("\n");
+    const header = [
+      clean.subject ? `Subject: ${clean.subject}` : null,
+      clean.topic ? `Focus topic: ${clean.topic}` : null,
+      `Difficulty: ${clean.difficulty}`,
+      `Number of questions: ${clean.count}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const user = `${header}\n\nSOURCE MATERIAL:\n"""\n${clean.sourceText}\n"""`;
+    return { system, user };
+  }
+
+  const system = BASE_RULES.join("\n");
+  const user = [
+    `Subject: ${clean.subject}`,
+    `Topic: ${clean.topic}`,
+    `Difficulty: ${clean.difficulty}`,
+    `Number of questions: ${clean.count}`,
   ].join("\n");
+  return { system, user };
 }
 
 /**
- * Calls Gemini and returns a validated array of MCQ objects:
- * { questionText, options: [4], correctAnswer: "A"|"B"|"C"|"D" }.
- *
- * @param {object} params - { subject, topic, difficulty, count }
- * @param {object} [config] - { apiKey, model, fetchImpl }
+ * Generates and validates an MCQ array:
+ * { questionText, options:[4], correctAnswer:"A"|"B"|"C"|"D" }.
  */
 export async function generateQuestions(params, config = {}) {
   const clean = validateGenerationParams(params);
-  const apiKey = config.apiKey ?? process.env.GEMINI_API_KEY;
-  const model = config.model ?? process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
-  const fetchImpl = config.fetchImpl ?? globalThis.fetch;
+  const { system, user } = buildPrompts(clean);
 
-  if (!apiKey) {
-    throw new Error(
-      "GEMINI_API_KEY is not configured on the server. Add it to your .env (local) or hosting environment variables.",
-    );
-  }
-  if (typeof fetchImpl !== "function") {
-    throw new Error("No fetch implementation available in this runtime.");
-  }
-
-  const url = `${GEMINI_BASE_URL}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
-  const response = await fetchImpl(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      systemInstruction: {
-        parts: [{ text: SYSTEM_INSTRUCTION }],
-      },
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: buildUserPrompt(clean) }],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.7,
-        responseMimeType: "application/json",
-        responseSchema: RESPONSE_SCHEMA,
-      },
-    }),
+  const text = await generateContent({
+    system,
+    user,
+    generationConfig: {
+      temperature: 0.7,
+      responseMimeType: "application/json",
+      responseSchema: RESPONSE_SCHEMA,
+    },
+    apiKey: config.apiKey,
+    model: config.model,
+    fetchImpl: config.fetchImpl,
   });
-
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(
-      `Gemini request failed (${response.status}). ${detail.slice(0, 300)}`.trim(),
-    );
-  }
-
-  const payload = await response.json();
-
-  const finishReason = payload?.candidates?.[0]?.finishReason;
-  if (finishReason && finishReason !== "STOP") {
-    throw new Error(
-      `Gemini stopped before finishing (reason: ${finishReason}). Try fewer questions or a different topic.`,
-    );
-  }
-
-  const text = payload?.candidates?.[0]?.content?.parts
-    ?.map((part) => part?.text ?? "")
-    .join("")
-    .trim();
-
-  if (!text) {
-    throw new Error("Gemini returned an empty response.");
-  }
 
   let parsed;
   try {
@@ -192,10 +158,8 @@ export async function generateQuestions(params, config = {}) {
   } catch {
     throw new Error("Could not parse the model response as JSON.");
   }
-
   if (!Array.isArray(parsed) || parsed.length === 0) {
     throw new Error("The model did not return any questions.");
   }
-
   return parsed.map(normalizeQuestion);
 }

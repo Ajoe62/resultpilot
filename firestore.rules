@@ -42,6 +42,17 @@ service cloud.firestore {
       }
     }
 
+    match /studyDocuments/{docId} {
+      // Metadata is listable by admins; students reach content only through the
+      // server (Admin SDK) via /api/rag-query, so no client read of vectors.
+      allow read: if isAdmin();
+      allow write: if false;
+
+      match /shards/{shardId} {
+        allow read, write: if false;
+      }
+    }
+
     match /examSessions/{sessionId} {
       allow read: if isAdmin();
       allow delete: if isAdmin();
