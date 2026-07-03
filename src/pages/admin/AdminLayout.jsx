@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { label: "Study Documents", path: "/admin/study-docs" },
   { label: "Results Dashboard", path: "/admin/results" },
   { label: "Student Lookup", path: "/admin/students" },
+  { label: "Tutors", path: "/admin/tutors" },
 ];
 
 export default function AdminLayout() {

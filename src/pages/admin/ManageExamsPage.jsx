@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { db } from "../../lib/firebase";
+import { useAuth } from "../../context/AuthContext";
 import {
   ASSESSMENT_TYPES,
   DEFAULT_ASSESSMENT_TYPE,
@@ -109,6 +110,7 @@ async function hasActiveExamConflict({ subject, pin, excludeExamId = "" }) {
 }
 
 export default function ManageExamsPage() {
+  const { schoolId } = useAuth();
   const [form, setForm] = useState(INITIAL_FORM);
   const [editingExamId, setEditingExamId] = useState("");
   const [exams, setExams] = useState([]);
@@ -202,15 +204,24 @@ export default function ManageExamsPage() {
         isActive: form.isActive,
       };
 
+      // Multi-tenant labels: stamp the tenant schoolId so scoped queries can
+      // find the exam. tutorId "legacy" = school-owned (a tutor-created exam
+      // would carry the tutor's uid instead). Only set on create so an exam
+      // later assigned to a tutor keeps its owner.
+      const tenantFields = schoolId ? { schoolId } : {};
+
       if (editingExamId) {
         await updateDoc(doc(db, "exams", editingExamId), {
           ...examPayload,
+          ...tenantFields,
           updatedAt: serverTimestamp(),
         });
         setStatus("Exam updated. Existing submitted results were left unchanged.");
       } else {
         await addDoc(collection(db, "exams"), {
           ...examPayload,
+          ...tenantFields,
+          tutorId: "legacy",
           isArchived: false,
           createdAt: serverTimestamp(),
         });

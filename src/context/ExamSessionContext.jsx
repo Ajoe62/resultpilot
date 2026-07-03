@@ -6,8 +6,9 @@ import {
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { createContext, useContext, useEffect, useState } from "react";
-import { usesFunctionExamFlow } from "../lib/examMode";
+import { usesFunctionExamFlow, usesVercelExamFlow } from "../lib/examMode";
 import { cloudFunctions, db } from "../lib/firebase";
+import { submitExamRequest } from "../lib/apiClient";
 import {
   DEFAULT_ASSESSMENT_TYPE,
   getAssessmentMaxScore,
@@ -143,6 +144,11 @@ export function ExamSessionProvider({ children }) {
         answers: session.answers,
       });
       result = response.data;
+    } else if (usesVercelExamFlow) {
+      result = await submitExamRequest({
+        sessionId: session.sessionId,
+        answers: session.answers,
+      });
     } else {
       const submittedAtMs = Date.now();
       const reviewItems = session.questions.map((question) => {

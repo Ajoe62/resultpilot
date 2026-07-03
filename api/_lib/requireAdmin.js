@@ -46,3 +46,45 @@ export async function requireAdmin(req) {
   }
   return decoded.uid;
 }
+
+// Verifies the caller is a SCHOOL ADMIN and returns { uid, schoolId }.
+// Accepts either a claims-based schooladmin (request.auth.token.role) or a
+// legacy root /admins/{uid} doc (transition). Legacy admins are treated as the
+// admin of DEFAULT_SCHOOL_ID (single-tenant origin). Used by the tutor
+// provisioning endpoints so an admin can only act within their own school.
+export async function requireSchoolAdmin(req) {
+  const token = extractBearer(req);
+  if (!token) {
+    throw new AuthError("Missing authorization token.");
+  }
+
+  const adminApp = getAdmin();
+
+  let decoded;
+  try {
+    decoded = await adminApp.auth().verifyIdToken(token);
+  } catch (verifyError) {
+    throw new AuthError(
+      `Invalid or expired authorization token: ${verifyError?.message || verifyError}`,
+    );
+  }
+
+  if (decoded.role === "schooladmin" && decoded.active === true && decoded.schoolId) {
+    return { uid: decoded.uid, schoolId: String(decoded.schoolId) };
+  }
+
+  // Legacy fallback: root admins collection.
+  const adminDoc = await getDb().collection("admins").doc(decoded.uid).get();
+  if (adminDoc.exists) {
+    const defaultSchoolId = String(process.env.DEFAULT_SCHOOL_ID || "").trim();
+    if (!defaultSchoolId) {
+      throw new AuthError(
+        "Server misconfigured: DEFAULT_SCHOOL_ID is not set for legacy admin.",
+        500,
+      );
+    }
+    return { uid: decoded.uid, schoolId: defaultSchoolId };
+  }
+
+  throw new AuthError("School admin access is required.", 403);
+}

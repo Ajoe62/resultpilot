@@ -45,3 +45,33 @@ export function deleteStudyDocument(documentId) {
 export function ragQuery(body) {
   return postJson("/api/rag-query", body);
 }
+
+// --- multi-tenant: tutor provisioning (school-admin authed) ---
+
+export function inviteTutor(body) {
+  return postJson("/api/admin/invite-tutor", body, { withAuth: true });
+}
+
+export function setTutorClaims(body) {
+  return postJson("/api/admin/set-claims", body, { withAuth: true });
+}
+
+export function deactivateTutor(tutorUid, reactivate = false) {
+  return postJson("/api/admin/deactivate-tutor", { tutorUid, reactivate }, { withAuth: true });
+}
+
+// Public — the invited tutor has no account yet.
+export function acceptInvite(body) {
+  return postJson("/api/auth/accept-invite", body);
+}
+
+// --- server-graded exam flow (VITE_EXAM_SECURITY_MODE=vercel). Public: students
+// are stateless. Grading + result writes happen server-side (Admin SDK). ---
+
+export function startExamSessionRequest(body) {
+  return postJson("/api/start-exam-session", body);
+}
+
+export function submitExamRequest(body) {
+  return postJson("/api/submit-exam", body);
+}

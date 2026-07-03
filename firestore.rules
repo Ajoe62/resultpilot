@@ -1,53 +1,189 @@
 rules_version = '2';
 
+// ResultPilot — multi-tenant, role-based rules.
+//
+// Identity comes from Firebase Auth CUSTOM CLAIMS set server-side (Vercel /api,
+// Admin SDK): request.auth.token.{role, schoolId, active}. Reading claims costs
+// ZERO Firestore reads, which is essential on the Spark free plan (daily quota).
+//
+// TRANSITION: existing single-tenant admins live in the root /admins/{uid}
+// collection and may not have claims yet. isSchoolAdmin()/isAdmin() therefore
+// also accept a legacy /admins/{uid} doc so the current dashboard keeps working
+// while claims roll out. Remove the legacy branch after every admin is migrated.
+//
+// Grading integrity: student results are still created in "client" mode with the
+// strict isValidClientResultCreate() validator (self-reported score — documented
+// free-plan limitation). Once the app is switched to Vercel-graded submissions
+// (Admin SDK writes results, bypassing rules), change `results` create to
+// `if false`. Do NOT flip it before the client is cut over or live exams break.
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isSignedIn() {
-      return request.auth != null;
-    }
 
-    function isAdmin() {
+    // ---------- primitives (no Firestore reads) ----------
+    function isSignedIn() { return request.auth != null; }
+    function claims()     { return request.auth.token; }
+    function isActiveClaim() { return isSignedIn() && claims().active == true; }
+    function callerSchool()  { return isSignedIn() ? claims().schoolId : null; }
+
+    // getUserSchoolId() — the caller's own schoolId, straight from the token.
+    // No circular document lookup (the spec's version was unresolvable).
+    function getUserSchoolId() { return callerSchool(); }
+
+    // ---------- legacy (transitional) ----------
+    function isLegacyAdmin() {
       return isSignedIn()
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    // ---------- role helpers ----------
+    function isClaimsSchoolAdmin(schoolId) {
+      return isActiveClaim() && claims().role == 'schooladmin' && claims().schoolId == schoolId;
+    }
+    // Any-school admin gate for the existing (not-yet-scoped) admin collections.
+    function isAdmin() {
+      return isLegacyAdmin()
+        || (isActiveClaim() && claims().role == 'schooladmin');
+    }
+    function isSchoolAdmin(schoolId) {
+      return isClaimsSchoolAdmin(schoolId) || isLegacyAdmin();
+    }
+    function isTutor(schoolId) {
+      return isActiveClaim() && claims().role == 'tutor' && claims().schoolId == schoolId;
+    }
+    function isMember(schoolId) { return isSchoolAdmin(schoolId) || isTutor(schoolId); }
+
+    // ---------- reads used only on tutor-scoped paths ----------
+    function examData(examId) {
+      return get(/databases/$(database)/documents/exams/$(examId)).data;
+    }
+    // assignedClasses is volatile/large, so it stays in the tutor profile (one
+    // get() only when a tutor lists classes/students), not in the token.
+    function tutorClasses(schoolId) {
+      return get(/databases/$(database)/documents/schools/$(schoolId)/tutors/$(request.auth.uid)).data.assignedClasses;
+    }
+    function isTutorForExam(schoolId, examId) {
+      return isTutor(schoolId)
+        && examData(examId).tutorId == request.auth.uid
+        && examData(examId).schoolId == schoolId;
+    }
+    function isTutorForClass(schoolId, classId) {
+      return isTutor(schoolId) && (classId in tutorClasses(schoolId));
+    }
+
+    // ================= membership / rosters =================
+
+    // Root admin roster (legacy single-tenant). Provisioned out-of-band only.
     match /admins/{adminId} {
       allow read: if isSignedIn() && request.auth.uid == adminId;
       allow write: if false;
     }
 
     match /schools/{schoolId} {
-      allow read: if isAdmin() || resource.data.isActive == true;
-      allow create, update, delete: if isAdmin();
-    }
+      // School profile doc: public read of ACTIVE schools drives student
+      // registration dropdowns; members read regardless of active flag.
+      allow read: if isMember(schoolId) || resource.data.isActive == true;
+      allow create, update, delete: if isSchoolAdmin(schoolId);
 
-    match /classes/{classId} {
-      allow read: if isAdmin() || resource.data.isActive == true;
-      allow create, update, delete: if isAdmin();
-    }
+      // Per-school admin roster (multi-tenant). Written by Admin SDK only.
+      match /admins/{uid} {
+        allow read: if isSchoolAdmin(schoolId) || (isSignedIn() && request.auth.uid == uid);
+        allow write: if false;
+      }
 
-    match /students/{studentId} {
-      allow read: if isAdmin() || resource.data.isActive == true;
-      allow create, update, delete: if isAdmin();
-    }
+      // Tutor profiles. Doc id == the tutor's auth uid (set at invite accept).
+      // Rule 7: only the school admin manages tutor docs; a tutor may read ONLY
+      // their own profile (needed to load assignedClasses in the UI). The invite
+      // token / uid / inviteAccepted fields are written by the Vercel accept-invite
+      // endpoint (Admin SDK), never by the client.
+      match /tutors/{uid} {
+        allow read: if isSchoolAdmin(schoolId) || (isSignedIn() && request.auth.uid == uid);
+        allow create, update, delete: if isSchoolAdmin(schoolId);
+      }
 
-    match /exams/{examId} {
-      allow read: if isAdmin() || resource.data.isActive == true;
-      allow create, update, delete: if isAdmin();
-
-      match /questions/{questionId} {
-        allow read: if isAdmin()
-          || get(/databases/$(database)/documents/exams/$(examId)).data.isActive == true;
-        allow create, update, delete: if isAdmin();
+      // Pending invitations. Tokens must never reach a client; the accept flow
+      // reads them server-side via the Admin SDK, so no public read is granted.
+      match /tutorInvites/{inviteId} {
+        allow read, write: if isSchoolAdmin(schoolId);
       }
     }
 
+    // ================= tenant data (flat, carry schoolId + tutorId) =================
+
+    match /classes/{classId} {
+      allow read: if isSchoolAdmin(resource.data.schoolId)
+        || (isTutor(resource.data.schoolId) && classId in tutorClasses(resource.data.schoolId))
+        || resource.data.isActive == true;
+      // isSchoolAdmin() already scopes a claims-admin to their own school and
+      // keeps the legacy root admin working (who has no schoolId claim yet).
+      allow create: if isSchoolAdmin(request.resource.data.schoolId);
+      allow update, delete: if isSchoolAdmin(resource.data.schoolId);
+    }
+
+    match /students/{studentId} {
+      // NOTE: public read of ACTIVE students is a pre-existing exposure coupled to
+      // the registration flow (documented in the rules test). Left intact here;
+      // harden separately. Tutors are scoped to their assigned classes.
+      allow read: if isSchoolAdmin(resource.data.schoolId)
+        || (isTutor(resource.data.schoolId) && resource.data.classId in tutorClasses(resource.data.schoolId))
+        || resource.data.isActive == true;
+      allow create: if isSchoolAdmin(request.resource.data.schoolId);
+      allow update, delete: if isSchoolAdmin(resource.data.schoolId);
+    }
+
+    match /exams/{examId} {
+      // Active exams are readable by anyone (stateless student PIN access).
+      allow read: if isSchoolAdmin(resource.data.schoolId)
+        || (isTutor(resource.data.schoolId) && resource.data.tutorId == request.auth.uid)
+        || resource.data.isActive == true;
+      // An admin may create any exam in their own school (isSchoolAdmin scopes
+      // claims-admins and keeps the legacy admin working); a tutor may create
+      // exams only under their own school and owned by themselves.
+      allow create: if isSchoolAdmin(request.resource.data.schoolId)
+        || (isTutor(request.resource.data.schoolId)
+            && request.resource.data.tutorId == request.auth.uid);
+      allow update, delete: if isSchoolAdmin(resource.data.schoolId)
+        || (isTutor(resource.data.schoolId) && resource.data.tutorId == request.auth.uid);
+
+      match /questions/{questionId} {
+        // Mirrors the exam's visibility; students self-grade active exams in
+        // client mode (correctAnswer readable while the exam is active — the
+        // documented free-plan integrity limitation).
+        allow read: if isSchoolAdmin(examData(examId).schoolId)
+          || (isTutor(examData(examId).schoolId) && examData(examId).tutorId == request.auth.uid)
+          || examData(examId).isActive == true;
+        allow write: if isSchoolAdmin(examData(examId).schoolId)
+          || (isTutor(examData(examId).schoolId) && examData(examId).tutorId == request.auth.uid);
+      }
+    }
+
+    // ---------- results ----------
+    // Read: admin for the school, or the owning tutor. Legacy/client results
+    // without a tutorId stay admin-only.
+    match /results/{resultId} {
+      allow read: if isSchoolAdmin(resource.data.schoolId)
+        || (isTutor(resource.data.schoolId) && resource.data.tutorId == request.auth.uid);
+      // Client-mode student submission (see file header). Retire to `if false`
+      // after the Vercel-graded cutover.
+      allow create: if isValidClientResultCreate();
+      allow update, delete: if isSchoolAdmin(resource.data.schoolId);
+    }
+
+    // ---------- flags (tutor raises, admin reviews) ----------
+    match /flags/{flagId} {
+      allow read: if isSchoolAdmin(resource.data.schoolId)
+        || (isTutor(resource.data.schoolId) && resource.data.raisedBy == request.auth.uid);
+      allow create: if isTutor(request.resource.data.schoolId)
+        && request.resource.data.schoolId == callerSchool()
+        && request.resource.data.raisedBy == request.auth.uid;
+      allow update, delete: if isSchoolAdmin(resource.data.schoolId);
+    }
+
+    // ================= existing admin-only collections (unchanged posture) =================
+
     match /studyDocuments/{docId} {
-      // Metadata is listable by admins; students reach content only through the
-      // server (Admin SDK) via /api/rag-query, so no client read of vectors.
       allow read: if isAdmin();
       allow write: if false;
-
       match /shards/{shardId} {
         allow read, write: if false;
       }
@@ -73,11 +209,7 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    match /results/{resultId} {
-      allow create: if isValidClientResultCreate();
-      allow read, update, delete: if isAdmin();
-    }
-
+    // ---------- client-mode result validation (unchanged + exam-active check) ----------
     function isValidClientResultCreate() {
       let data = request.resource.data;
 
@@ -156,7 +288,9 @@ service cloud.firestore {
         && data.answers is list
         && data.answers.size() == data.total
         && data.submittedAt == request.time
-        && data.submittedAtMs is int;
+        && data.submittedAtMs is int
+        // Rule 6: the exam must exist and be active for a submission to land.
+        && examData(data.examId).isActive == true;
     }
   }
 }

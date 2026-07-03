@@ -27,6 +27,9 @@ import {
 const PROJECT_ID = "resultpilot-rules-test";
 const ADMIN_UID = "admin-uid";
 const USER_UID = "non-admin-uid";
+const TUTOR_UID = "tutor-uid";
+const OTHER_TUTOR_UID = "other-tutor-uid";
+const SCHOOL = "school-active";
 
 let testEnv;
 
@@ -64,6 +67,18 @@ beforeEach(async () => {
     await setDoc(doc(db, "termNotes", "tn-1"), { note: "good" });
     await setDoc(doc(db, "adminAuditLogs", "log-1"), { action: "x" });
     await setDoc(doc(db, "examSessions", "sess-1"), { status: "in_progress" });
+
+    // ---- multi-tenant / claims fixtures ----
+    await setDoc(doc(db, "exams", "exam-tutor"), { title: "Bio", subject: "Bio", pin: "111", isActive: false, schoolId: SCHOOL, tutorId: TUTOR_UID });
+    await setDoc(doc(db, "exams", "exam-other"), { title: "Chem", subject: "Chem", pin: "222", isActive: false, schoolId: SCHOOL, tutorId: OTHER_TUTOR_UID });
+    await setDoc(doc(db, "results", "res-tutor"), { schoolId: SCHOOL, tutorId: TUTOR_UID, studentName: "A", score: 1, total: 2 });
+    await setDoc(doc(db, "results", "res-other"), { schoolId: SCHOOL, tutorId: OTHER_TUTOR_UID, studentName: "B", score: 1, total: 2 });
+    await setDoc(doc(db, "schools", SCHOOL, "tutors", TUTOR_UID), { uid: TUTOR_UID, schoolId: SCHOOL, assignedClasses: ["class-active"], active: true, email: "t@x.com" });
+    await setDoc(doc(db, "schools", SCHOOL, "tutors", OTHER_TUTOR_UID), { uid: OTHER_TUTOR_UID, schoolId: SCHOOL, assignedClasses: ["class-zzz"], active: true });
+    await setDoc(doc(db, "schools", SCHOOL, "tutorInvites", "inv-1"), { token: "tok-1", accepted: false, schoolId: SCHOOL, email: "new@x.com", assignedClasses: ["class-active"] });
+    await setDoc(doc(db, "students", "stud-in"), { fullName: "In Class", classId: "class-active", schoolId: SCHOOL, isActive: false });
+    await setDoc(doc(db, "students", "stud-out"), { fullName: "Out Class", classId: "class-zzz", schoolId: SCHOOL, isActive: false });
+    await setDoc(doc(db, "flags", "flag-1"), { schoolId: SCHOOL, raisedBy: TUTOR_UID, note: "needs review" });
   });
 });
 
@@ -75,6 +90,27 @@ function asAdmin() {
 }
 function asUser() {
   return testEnv.authenticatedContext(USER_UID).firestore();
+}
+// Claims-based contexts: the second arg becomes request.auth.token.*
+function asSchoolAdmin(schoolId = SCHOOL) {
+  return testEnv
+    .authenticatedContext("sa-uid", { role: "schooladmin", schoolId, active: true })
+    .firestore();
+}
+function asOtherSchoolAdmin() {
+  return testEnv
+    .authenticatedContext("sa-B", { role: "schooladmin", schoolId: "school-B", active: true })
+    .firestore();
+}
+function asTutor(uid = TUTOR_UID, schoolId = SCHOOL) {
+  return testEnv
+    .authenticatedContext(uid, { role: "tutor", schoolId, active: true })
+    .firestore();
+}
+function asDeactivatedTutor(uid = TUTOR_UID, schoolId = SCHOOL) {
+  return testEnv
+    .authenticatedContext(uid, { role: "tutor", schoolId, active: false })
+    .firestore();
 }
 
 function validResultPayload(overrides = {}) {
@@ -244,5 +280,149 @@ describe("students (CURRENT posture — see report)", () => {
   });
   test("unauth cannot write students", async () => {
     await assertFails(setDoc(doc(unauth(), "students", "x"), { fullName: "x", isActive: true }));
+  });
+});
+
+describe("claims-based school admin (multi-tenant)", () => {
+  test("school admin reads results in their school", async () => {
+    await assertSucceeds(getDoc(doc(asSchoolAdmin(), "results", "res-tutor")));
+  });
+  test("school admin reads an inactive exam in their school", async () => {
+    await assertSucceeds(getDoc(doc(asSchoolAdmin(), "exams", "exam-tutor")));
+  });
+  test("school admin creates an exam stamped with their own schoolId", async () => {
+    await assertSucceeds(
+      setDoc(doc(asSchoolAdmin(), "exams", "new-exam"), {
+        title: "New", subject: "Math", pin: "555", isActive: true, schoolId: SCHOOL, tutorId: "legacy",
+      }),
+    );
+  });
+  test("school admin CANNOT create an exam under a different schoolId", async () => {
+    await assertFails(
+      setDoc(doc(asSchoolAdmin(), "exams", "cross"), {
+        title: "X", subject: "Math", pin: "556", isActive: true, schoolId: "school-B", tutorId: "legacy",
+      }),
+    );
+  });
+  test("admin from another school CANNOT read this school's results", async () => {
+    await assertFails(getDoc(doc(asOtherSchoolAdmin(), "results", "res-tutor")));
+  });
+  test("admin from another school CANNOT read this school's exam", async () => {
+    await assertFails(getDoc(doc(asOtherSchoolAdmin(), "exams", "exam-tutor")));
+  });
+});
+
+describe("create posture — legacy admin keeps working, tutor blocked", () => {
+  test("legacy root admin can create a class/student/exam (no schoolId claim needed)", async () => {
+    await assertSucceeds(setDoc(doc(asAdmin(), "classes", "c-leg"), { name: "JSS3", schoolId: SCHOOL, isActive: true }));
+    await assertSucceeds(setDoc(doc(asAdmin(), "students", "s-leg"), { fullName: "Leg", classId: "class-active", schoolId: SCHOOL, isActive: true }));
+    await assertSucceeds(setDoc(doc(asAdmin(), "exams", "e-leg"), { title: "L", subject: "Math", pin: "909", isActive: true, schoolId: SCHOOL, tutorId: "legacy" }));
+  });
+  test("claims school admin can create in their own school", async () => {
+    await assertSucceeds(setDoc(doc(asSchoolAdmin(), "classes", "c-sa"), { name: "JSS4", schoolId: SCHOOL, isActive: true }));
+  });
+  test("claims tutor CANNOT create a class or student", async () => {
+    await assertFails(setDoc(doc(asTutor(), "classes", "c-t"), { name: "X", schoolId: SCHOOL, isActive: true }));
+    await assertFails(setDoc(doc(asTutor(), "students", "s-t"), { fullName: "X", classId: "class-active", schoolId: SCHOOL, isActive: true }));
+  });
+});
+
+describe("tutor scoping — exams & results", () => {
+  test("tutor reads their OWN exam (even inactive)", async () => {
+    await assertSucceeds(getDoc(doc(asTutor(), "exams", "exam-tutor")));
+  });
+  test("tutor CANNOT read another tutor's inactive exam", async () => {
+    await assertFails(getDoc(doc(asTutor(), "exams", "exam-other")));
+  });
+  test("tutor reads their OWN result", async () => {
+    await assertSucceeds(getDoc(doc(asTutor(), "results", "res-tutor")));
+  });
+  test("tutor CANNOT read another tutor's result", async () => {
+    await assertFails(getDoc(doc(asTutor(), "results", "res-other")));
+  });
+  test("tutor creates an exam owned by themselves in their school", async () => {
+    await assertSucceeds(
+      setDoc(doc(asTutor(), "exams", "t-new"), {
+        title: "T", subject: "Bio", pin: "777", isActive: true, schoolId: SCHOOL, tutorId: TUTOR_UID,
+      }),
+    );
+  });
+  test("tutor CANNOT create an exam owned by someone else", async () => {
+    await assertFails(
+      setDoc(doc(asTutor(), "exams", "t-bad"), {
+        title: "T", subject: "Bio", pin: "778", isActive: true, schoolId: SCHOOL, tutorId: OTHER_TUTOR_UID,
+      }),
+    );
+  });
+  test("tutor CANNOT update another tutor's exam", async () => {
+    await assertFails(updateDoc(doc(asTutor(), "exams", "exam-other"), { title: "hijacked" }));
+  });
+  test("DEACTIVATED tutor cannot read their own result", async () => {
+    await assertFails(getDoc(doc(asDeactivatedTutor(), "results", "res-tutor")));
+  });
+});
+
+describe("tutor scoping — students by assigned class", () => {
+  test("tutor reads a student in an assigned class", async () => {
+    await assertSucceeds(getDoc(doc(asTutor(), "students", "stud-in")));
+  });
+  test("tutor CANNOT read a student outside their assigned classes", async () => {
+    await assertFails(getDoc(doc(asTutor(), "students", "stud-out")));
+  });
+  test("tutor cannot write students", async () => {
+    await assertFails(setDoc(doc(asTutor(), "students", "x"), { fullName: "x", classId: "class-active", schoolId: SCHOOL }));
+  });
+});
+
+describe("tutor roster + invites (only admin manages tutor docs)", () => {
+  test("tutor reads their OWN tutor profile", async () => {
+    await assertSucceeds(getDoc(doc(asTutor(), "schools", SCHOOL, "tutors", TUTOR_UID)));
+  });
+  test("tutor CANNOT read another tutor's profile", async () => {
+    await assertFails(getDoc(doc(asTutor(), "schools", SCHOOL, "tutors", OTHER_TUTOR_UID)));
+  });
+  test("school admin reads any tutor profile", async () => {
+    await assertSucceeds(getDoc(doc(asSchoolAdmin(), "schools", SCHOOL, "tutors", OTHER_TUTOR_UID)));
+  });
+  test("tutor CANNOT write their own profile (admin-only)", async () => {
+    await assertFails(updateDoc(doc(asTutor(), "schools", SCHOOL, "tutors", TUTOR_UID), { assignedClasses: ["class-active", "class-zzz"] }));
+  });
+  test("school admin can update a tutor profile", async () => {
+    await assertSucceeds(updateDoc(doc(asSchoolAdmin(), "schools", SCHOOL, "tutors", TUTOR_UID), { assignedClasses: [] }));
+  });
+  test("invite tokens are never client-readable; admin can read them", async () => {
+    await assertFails(getDoc(doc(unauth(), "schools", SCHOOL, "tutorInvites", "inv-1")));
+    await assertFails(getDoc(doc(asTutor(), "schools", SCHOOL, "tutorInvites", "inv-1")));
+    await assertSucceeds(getDoc(doc(asSchoolAdmin(), "schools", SCHOOL, "tutorInvites", "inv-1")));
+  });
+});
+
+describe("flags (tutor raises, admin reviews)", () => {
+  test("tutor creates a flag they own in their school", async () => {
+    await assertSucceeds(
+      setDoc(doc(asTutor(), "flags", "flag-new"), { schoolId: SCHOOL, raisedBy: TUTOR_UID, note: "x" }),
+    );
+  });
+  test("tutor CANNOT create a flag attributed to someone else", async () => {
+    await assertFails(
+      setDoc(doc(asTutor(), "flags", "flag-bad"), { schoolId: SCHOOL, raisedBy: OTHER_TUTOR_UID, note: "x" }),
+    );
+  });
+  test("tutor reads their own flag; admin reads flags", async () => {
+    await assertSucceeds(getDoc(doc(asTutor(), "flags", "flag-1")));
+    await assertSucceeds(getDoc(doc(asSchoolAdmin(), "flags", "flag-1")));
+  });
+});
+
+describe("results create requires an ACTIVE exam (Rule 6)", () => {
+  test("rejects a result whose exam is inactive", async () => {
+    await assertFails(
+      addDoc(collection(unauth(), "results"), validResultPayload({ examId: "exam-inactive", examTitle: "Old" })),
+    );
+  });
+  test("rejects a result whose exam does not exist", async () => {
+    await assertFails(
+      addDoc(collection(unauth(), "results"), validResultPayload({ examId: "no-such-exam" })),
+    );
   });
 });

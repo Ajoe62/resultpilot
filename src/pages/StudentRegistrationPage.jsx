@@ -9,8 +9,9 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useExamSession } from "../context/ExamSessionContext";
-import { usesFunctionExamFlow } from "../lib/examMode";
+import { usesFunctionExamFlow, usesVercelExamFlow } from "../lib/examMode";
 import { cloudFunctions, liteDb } from "../lib/firebase";
+import { startExamSessionRequest } from "../lib/apiClient";
 import { shuffleArray } from "../lib/utils";
 
 function getSetupErrorMessage(error) {
@@ -219,21 +220,30 @@ export default function StudentRegistrationPage() {
     try {
       clearSession();
 
+      const startPayload = {
+        fullName: studentFullName,
+        admissionNumber,
+        className,
+        schoolName,
+        studentId: selectedStudent?.id || "",
+        classId: selectedClass?.id || "",
+        schoolId: selectedSchool?.id || "",
+        subject: form.subject,
+        pin,
+      };
+
       if (usesFunctionExamFlow) {
         const startExamSession = httpsCallable(cloudFunctions, "startExamSession");
-        const response = await startExamSession({
-          fullName: studentFullName,
-          admissionNumber,
-          className,
-          schoolName,
-          studentId: selectedStudent?.id || "",
-          classId: selectedClass?.id || "",
-          schoolId: selectedSchool?.id || "",
-          subject: form.subject,
-          pin,
-        });
+        const response = await startExamSession(startPayload);
 
         startSession(response.data);
+        navigate("/exam");
+        return;
+      }
+
+      if (usesVercelExamFlow) {
+        const session = await startExamSessionRequest(startPayload);
+        startSession(session);
         navigate("/exam");
         return;
       }
