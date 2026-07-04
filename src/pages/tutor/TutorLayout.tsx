@@ -1,18 +1,15 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../hooks/useAuth";
 
 const NAV_ITEMS = [
-  { label: "School Setup", path: "/admin/setup" },
-  { label: "Manage Exams", path: "/admin/exams" },
-  { label: "Manage Questions", path: "/admin/questions" },
-  { label: "Study Documents", path: "/admin/study-docs" },
-  { label: "Results Dashboard", path: "/admin/results" },
-  { label: "Student Lookup", path: "/admin/students" },
-  { label: "Tutors", path: "/admin/tutors" },
-  { label: "School Analytics", path: "/admin/analytics" },
+  { label: "Overview", path: "/tutor/overview" },
+  { label: "My Exams", path: "/tutor/exams" },
+  { label: "Students", path: "/tutor/students" },
+  { label: "Results", path: "/tutor/results" },
+  { label: "Analytics", path: "/tutor/analytics" },
 ];
 
-export default function AdminLayout() {
+export default function TutorLayout() {
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
 
@@ -26,16 +23,14 @@ export default function AdminLayout() {
       <aside className="admin-sidebar">
         <div>
           <span className="eyebrow">ResultPilot</span>
-          <h1>Admin Dashboard</h1>
+          <h1>Tutor Dashboard</h1>
           <p>Signed in as {currentUser?.email}</p>
         </div>
 
         <nav className="sidebar-nav">
           {NAV_ITEMS.map((item) => (
             <NavLink
-              className={({ isActive }) =>
-                `sidebar-link ${isActive ? "sidebar-link--active" : ""}`
-              }
+              className={({ isActive }) => `sidebar-link ${isActive ? "sidebar-link--active" : ""}`}
               key={item.path}
               to={item.path}
             >

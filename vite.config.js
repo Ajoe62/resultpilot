@@ -98,6 +98,15 @@ export default defineConfig(({ mode }) => {
             if (id.includes("firebase")) {
               return "vendor_firebase";
             }
+            // Charts (recharts + its d3 deps) only load on the tutor analytics
+            // route, so keep them out of the shared vendor chunk.
+            if (
+              id.includes("node_modules/recharts") ||
+              id.includes("node_modules/victory-vendor") ||
+              id.includes("node_modules/d3-")
+            ) {
+              return "vendor_recharts";
+            }
             if (id.includes("react")) {
               return "vendor_react";
             }

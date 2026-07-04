@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const ExamPage = lazy(() => import("./pages/ExamPage"));
@@ -15,8 +15,16 @@ const ManageStudyDocsPage = lazy(() => import("./pages/admin/ManageStudyDocsPage
 const ResultsDashboardPage = lazy(() => import("./pages/admin/ResultsDashboardPage"));
 const StudentLookupPage = lazy(() => import("./pages/admin/StudentLookupPage"));
 const AdminTutorManagementPage = lazy(() => import("./pages/admin/AdminTutorManagementPage"));
+const AdminSchoolAnalytics = lazy(() => import("./pages/admin/AdminSchoolAnalytics"));
 const AcceptInvitePage = lazy(() => import("./pages/auth/AcceptInvitePage"));
+const TutorLayout = lazy(() => import("./pages/tutor/TutorLayout"));
 const TutorOverview = lazy(() => import("./pages/tutor/TutorOverview"));
+const TutorExamList = lazy(() => import("./pages/tutor/TutorExamList"));
+const TutorCreateExam = lazy(() => import("./pages/tutor/TutorCreateExam"));
+const TutorExamDetail = lazy(() => import("./pages/tutor/TutorExamDetail"));
+const TutorStudentList = lazy(() => import("./pages/tutor/TutorStudentList"));
+const TutorResultList = lazy(() => import("./pages/tutor/TutorResultList"));
+const TutorAnalytics = lazy(() => import("./pages/tutor/TutorAnalytics"));
 
 export default function App() {
   return (
@@ -46,12 +54,18 @@ export default function App() {
           path="/tutor"
           element={
             <ProtectedRoute allowedRoles={["tutor"]}>
-              <Outlet />
+              <TutorLayout />
             </ProtectedRoute>
           }
         >
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="overview" element={<TutorOverview />} />
+          <Route path="exams" element={<TutorExamList />} />
+          <Route path="exams/new" element={<TutorCreateExam />} />
+          <Route path="exams/:examId" element={<TutorExamDetail />} />
+          <Route path="students" element={<TutorStudentList />} />
+          <Route path="results" element={<TutorResultList />} />
+          <Route path="analytics" element={<TutorAnalytics />} />
         </Route>
         <Route
           path="/admin"
@@ -69,6 +83,7 @@ export default function App() {
           <Route path="results" element={<ResultsDashboardPage />} />
           <Route path="students" element={<StudentLookupPage />} />
           <Route path="tutors" element={<AdminTutorManagementPage />} />
+          <Route path="analytics" element={<AdminSchoolAnalytics />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
