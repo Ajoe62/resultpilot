@@ -51,9 +51,11 @@ export default async function handler(req, res) {
       if (lookupError?.code !== "auth/user-not-found") throw lookupError;
     }
 
+    // Flat collection keyed by the token, so acceptance is a direct doc get()
+    // (no collection-group query, no composite index). Token is an unguessable
+    // UUID and this collection has no client-readable rule.
     const token = crypto.randomUUID();
-    const inviteId = crypto.randomUUID();
-    await db.doc(`schools/${caller.schoolId}/tutorInvites/${inviteId}`).set({
+    await db.doc(`tutorInvites/${token}`).set({
       token,
       name,
       email,

@@ -2,11 +2,11 @@
 // Body: { token, password }
 // Completes a tutor invitation ATOMICALLY and server-side, closing the
 // client-side privilege-escalation hole in the original plan:
-//   1. look up the (unused) invite by token via the Admin SDK
+//   1. look up the (unused) invite by token (direct get on /tutorInvites/{token})
 //   2. create the Firebase Auth account
 //   3. stamp custom claims { role:'tutor', schoolId, active:true }
 //   4. write the tutor profile at /schools/{schoolId}/tutors/{uid}
-//   5. mark the invite accepted and clear its token
+//   5. mark the invite accepted
 // If any step after account creation fails, the new auth user is rolled back so
 // no orphan account is left behind. The client never writes the tutor doc.
 
@@ -39,21 +39,20 @@ export default async function handler(req, res) {
 
   let createdUid = null;
   try {
-    // 1. Find the pending invite (token is never exposed to clients).
-    const snap = await db
-      .collectionGroup("tutorInvites")
-      .where("token", "==", token)
-      .where("accepted", "==", false)
-      .limit(1)
-      .get();
+    // 1. Find the pending invite by token — a direct doc get(), no query/index.
+    const inviteRef = db.doc(`tutorInvites/${token}`);
+    const inviteSnap = await inviteRef.get();
 
-    if (snap.empty) {
+    if (!inviteSnap.exists) {
       res.status(400).json({ error: "This invitation is invalid or has already been used." });
       return;
     }
 
-    const inviteDoc = snap.docs[0];
-    const invite = inviteDoc.data();
+    const invite = inviteSnap.data();
+    if (invite.accepted === true) {
+      res.status(400).json({ error: "This invitation has already been used." });
+      return;
+    }
     const schoolId = String(invite.schoolId ?? "").trim();
     const email = String(invite.email ?? "").trim().toLowerCase();
     const name = String(invite.name ?? "").trim();
@@ -104,11 +103,10 @@ export default async function handler(req, res) {
       acceptedAt: FieldValue.serverTimestamp(),
       lastActiveAt: FieldValue.serverTimestamp(),
     });
-    batch.update(inviteDoc.ref, {
+    batch.update(inviteRef, {
       accepted: true,
       acceptedByUid: createdUid,
       acceptedAt: FieldValue.serverTimestamp(),
-      token: FieldValue.delete(),
     });
     await batch.commit();
 
@@ -123,7 +121,10 @@ export default async function handler(req, res) {
       }
     }
     console.error("accept-invite failed", error);
-    res.status(500).json({ error: "Could not complete the invitation. Please try again or contact your admin." });
+    res.status(500).json({
+      error: "Could not complete the invitation. Please try again or contact your admin.",
+      code: error?.code || undefined,
+    });
   }
 }
 
