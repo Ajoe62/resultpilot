@@ -60,6 +60,12 @@ export function deactivateTutor(tutorUid, reactivate = false) {
   return postJson("/api/admin/deactivate-tutor", { tutorUid, reactivate }, { withAuth: true });
 }
 
+// Owner self-service: create a school and gain access to it (server appends it
+// to the caller's schoolIds claim).
+export function createSchool(body) {
+  return postJson("/api/admin/create-school", body, { withAuth: true });
+}
+
 // Public — the invited tutor has no account yet.
 export function acceptInvite(body) {
   return postJson("/api/auth/accept-invite", body);

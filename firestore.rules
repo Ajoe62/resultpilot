@@ -37,8 +37,12 @@ service cloud.firestore {
     }
 
     // ---------- role helpers ----------
+    // A claims school-admin manages either their single `schoolId` claim, or —
+    // for multi-school owners — any school in their `schoolIds` list claim.
     function isClaimsSchoolAdmin(schoolId) {
-      return isActiveClaim() && claims().role == 'schooladmin' && claims().schoolId == schoolId;
+      return isActiveClaim() && claims().role == 'schooladmin'
+        && (claims().schoolId == schoolId
+            || (claims().schoolIds is list && schoolId in claims().schoolIds));
     }
     // Any-school admin gate for the existing (not-yet-scoped) admin collections.
     function isAdmin() {

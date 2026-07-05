@@ -79,6 +79,8 @@ beforeEach(async () => {
     await setDoc(doc(db, "students", "stud-in"), { fullName: "In Class", classId: "class-active", schoolId: SCHOOL, isActive: false });
     await setDoc(doc(db, "students", "stud-out"), { fullName: "Out Class", classId: "class-zzz", schoolId: SCHOOL, isActive: false });
     await setDoc(doc(db, "flags", "flag-1"), { schoolId: SCHOOL, raisedBy: TUTOR_UID, note: "needs review" });
+    await setDoc(doc(db, "exams", "exam-schoolB"), { title: "B", subject: "B", pin: "b1", isActive: false, schoolId: "school-B", tutorId: "legacy" });
+    await setDoc(doc(db, "exams", "exam-schoolC"), { title: "C", subject: "C", pin: "c1", isActive: false, schoolId: "school-C", tutorId: "legacy" });
   });
 });
 
@@ -110,6 +112,17 @@ function asTutor(uid = TUTOR_UID, schoolId = SCHOOL) {
 function asDeactivatedTutor(uid = TUTOR_UID, schoolId = SCHOOL) {
   return testEnv
     .authenticatedContext(uid, { role: "tutor", schoolId, active: false })
+    .firestore();
+}
+// Multi-school owner: manages school-active (primary) + school-B via schoolIds.
+function asOwner() {
+  return testEnv
+    .authenticatedContext("owner-uid", {
+      role: "schooladmin",
+      schoolId: "school-active",
+      schoolIds: ["school-active", "school-B"],
+      active: true,
+    })
     .firestore();
 }
 
@@ -309,6 +322,28 @@ describe("claims-based school admin (multi-tenant)", () => {
   });
   test("admin from another school CANNOT read this school's exam", async () => {
     await assertFails(getDoc(doc(asOtherSchoolAdmin(), "exams", "exam-tutor")));
+  });
+});
+
+describe("multi-school owner (schoolIds claim)", () => {
+  test("owner reads an exam in their PRIMARY school", async () => {
+    await assertSucceeds(getDoc(doc(asOwner(), "exams", "exam-tutor")));
+  });
+  test("owner reads an exam in a school in their schoolIds list", async () => {
+    await assertSucceeds(getDoc(doc(asOwner(), "exams", "exam-schoolB")));
+  });
+  test("owner CANNOT read an exam in a school NOT in their list", async () => {
+    await assertFails(getDoc(doc(asOwner(), "exams", "exam-schoolC")));
+  });
+  test("owner can create an exam in a school they own", async () => {
+    await assertSucceeds(
+      setDoc(doc(asOwner(), "exams", "owned-new"), {
+        title: "N", subject: "Math", pin: "z9", isActive: true, schoolId: "school-B", tutorId: "legacy",
+      }),
+    );
+  });
+  test("a single-school admin CANNOT read another school's exam", async () => {
+    await assertFails(getDoc(doc(asSchoolAdmin(), "exams", "exam-schoolB")));
   });
 });
 

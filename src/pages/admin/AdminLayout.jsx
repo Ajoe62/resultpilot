@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import SchoolSwitcher from "../../components/SchoolSwitcher";
 
 const NAV_ITEMS = [
   { label: "School Setup", path: "/admin/setup" },
@@ -29,6 +30,7 @@ export default function AdminLayout() {
           <span className="eyebrow">ResultPilot</span>
           <h1>Admin Dashboard</h1>
           <p>Signed in as {currentUser?.email}</p>
+          <SchoolSwitcher />
         </div>
 
         <nav className="sidebar-nav">

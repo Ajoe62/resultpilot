@@ -7,6 +7,8 @@ export interface AuthValue {
   currentUser: { uid: string; email: string | null } | null;
   role: Role | null;
   schoolId: string | null;
+  manageableSchools: string[];
+  switchSchool: (id: string) => void;
   assignedClasses: string[];
   isAdmin: boolean;
   loading: boolean;
