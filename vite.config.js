@@ -107,9 +107,10 @@ export default defineConfig(({ mode }) => {
             ) {
               return "vendor_recharts";
             }
-            if (id.includes("react")) {
-              return "vendor_react";
-            }
+            // React (+ react-dom, react-router) stays in the main vendor chunk.
+            // Isolating it into its own chunk created a circular chunk
+            // (vendor <-> vendor_react) that broke the production bundle at load
+            // — a blank page on Vercel while `npm run dev` (unchunked) worked.
             return "vendor";
           }
         },
