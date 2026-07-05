@@ -791,3 +791,71 @@ th {
   max-height: 85vh;
   overflow-y: auto;
 }
+
+/* Notification bell */
+.content-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+.notif {
+  position: relative;
+}
+.notif__bell {
+  position: relative;
+  background: none;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  border-radius: 999px;
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.notif__badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+.notif__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+.notif__dropdown {
+  position: absolute;
+  right: 0;
+  top: 3rem;
+  width: 340px;
+  max-width: 90vw;
+  max-height: 60vh;
+  overflow-y: auto;
+  z-index: 50;
+}
+.notif__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.notif__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 0.6rem 0;
+  cursor: pointer;
+}
+.notif__item--unread {
+  background: rgba(37, 99, 235, 0.06);
+}

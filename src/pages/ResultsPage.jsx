@@ -13,6 +13,8 @@ export default function ResultsPage() {
   const { session, clearSession } = useExamSession();
   const [showReview, setShowReview] = useState(false);
   const result = session.submittedResult;
+  const pendingTheory = Boolean(result?.hasTheory && result?.completionStatus === "pending_theory");
+  const hasMCQ = result?.hasMCQ !== false;
 
   const restart = () => {
     clearSession();
@@ -24,42 +26,66 @@ export default function ResultsPage() {
       <section className="results-layout">
         <div className="card results-card">
           <span className="eyebrow">Exam Completed</span>
-          <h1>{result.passed ? "Pass" : "Result Ready"}</h1>
-          <p>{getScoreMessage(result.percentage)}</p>
+          <h1>{pendingTheory ? "Answers Submitted" : result.passed ? "Pass" : "Result Ready"}</h1>
+          {hasMCQ ? <p>{getScoreMessage(result.percentage)}</p> : null}
 
-          <CircularScore percentage={result.percentage} />
+          {pendingTheory ? (
+            <div className="card" style={{ borderLeft: "4px solid #2563eb", margin: "0 0 1rem" }}>
+              <strong>Your written answers have been received.</strong> Your teacher will review them and release your final result.
+              {hasMCQ ? " The score below is your objective (Section A) result only." : ""}
+            </div>
+          ) : null}
 
-          <div className="results-grid">
-            <div className="result-metric">
-              <span>Score</span>
-              <strong>
-                {result.score}/{result.total}
-              </strong>
+          {hasMCQ ? (
+            <>
+              <CircularScore percentage={result.percentage} />
+
+              <div className="results-grid">
+                <div className="result-metric">
+                  <span>{pendingTheory ? "Section A Score" : "Score"}</span>
+                  <strong>
+                    {result.score}/{result.total}
+                  </strong>
+                </div>
+                <div className="result-metric">
+                  <span>Status</span>
+                  <strong className={result.passed ? "status-pill status-pill--pass" : "status-pill status-pill--fail"}>
+                    {pendingTheory ? "Pending" : result.passed ? "Pass" : "Fail"}
+                  </strong>
+                </div>
+                <div className="result-metric">
+                  <span>Time Taken</span>
+                  <strong>{formatTimeTaken(result.timeTaken)}</strong>
+                </div>
+                <div className="result-metric">
+                  <span>Finished</span>
+                  <strong>{formatDateValue(result.submittedAtMs)}</strong>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="results-grid">
+              <div className="result-metric">
+                <span>Written Answers</span>
+                <strong>Under review</strong>
+              </div>
+              <div className="result-metric">
+                <span>Finished</span>
+                <strong>{formatDateValue(result.submittedAtMs)}</strong>
+              </div>
             </div>
-            <div className="result-metric">
-              <span>Status</span>
-              <strong className={result.passed ? "status-pill status-pill--pass" : "status-pill status-pill--fail"}>
-                {result.passed ? "Pass" : "Fail"}
-              </strong>
-            </div>
-            <div className="result-metric">
-              <span>Time Taken</span>
-              <strong>{formatTimeTaken(result.timeTaken)}</strong>
-            </div>
-            <div className="result-metric">
-              <span>Finished</span>
-              <strong>{formatDateValue(result.submittedAtMs)}</strong>
-            </div>
-          </div>
+          )}
 
           <div className="button-row">
-            <button
-              className="secondary-button"
-              onClick={() => setShowReview((current) => !current)}
-              type="button"
-            >
-              {showReview ? "Hide Review" : "Review Answers"}
-            </button>
+            {result.reviewItems?.length ? (
+              <button
+                className="secondary-button"
+                onClick={() => setShowReview((current) => !current)}
+                type="button"
+              >
+                {showReview ? "Hide Review" : "Review Answers"}
+              </button>
+            ) : null}
             <button className="primary-button" onClick={restart} type="button">
               Back to Home
             </button>

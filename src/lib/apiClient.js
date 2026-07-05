@@ -75,3 +75,15 @@ export function startExamSessionRequest(body) {
 export function submitExamRequest(body) {
   return postJson("/api/submit-exam", body);
 }
+
+// Public trigger for AI marking of a theory submission (fire-and-forget after
+// exam submission; idempotent + server-guarded).
+export function markTheory(body) {
+  return postJson("/api/mark-theory", body);
+}
+
+// Tutor/admin releases a theory submission: server clamps scores, computes the
+// combined result, and marks it complete.
+export function finaliseTheory(submissionId) {
+  return postJson("/api/finalise-theory", { submissionId }, { withAuth: true });
+}

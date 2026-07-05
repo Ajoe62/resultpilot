@@ -5,6 +5,7 @@ import { db } from "../../lib/firebase";
 import ExamForm from "../../components/exams/ExamForm";
 import type { ExamFormValues } from "../../components/exams/ExamForm";
 import QuestionEditor from "../../components/exams/QuestionEditor";
+import TheoryQuestionBuilder from "../../components/exams/TheoryQuestionBuilder";
 import { getAssessmentMaxScore } from "../../lib/assessmentTypes";
 import type { Exam } from "../../hooks/types";
 
@@ -109,6 +110,7 @@ export default function TutorExamDetail() {
         <h3>Questions</h3>
       </div>
       <QuestionEditor examId={exam.id} />
+      <TheoryQuestionBuilder examId={exam.id} exam={exam} />
     </section>
   );
 }

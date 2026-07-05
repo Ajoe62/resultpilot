@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { label: "Results Dashboard", path: "/admin/results" },
   { label: "Student Lookup", path: "/admin/students" },
   { label: "Tutors", path: "/admin/tutors" },
+  { label: "Theory Marking", path: "/admin/marking" },
   { label: "School Analytics", path: "/admin/analytics" },
 ];
 

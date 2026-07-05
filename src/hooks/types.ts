@@ -23,6 +23,9 @@ export interface Exam extends WithId {
   schoolId?: string;
   tutorId?: string;
   classId?: string;
+  hasTheory?: boolean;
+  theorySectionLabel?: string;
+  theoryInstructions?: string;
   createdAt?: unknown;
 }
 

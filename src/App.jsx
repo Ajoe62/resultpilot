@@ -25,6 +25,7 @@ const TutorExamDetail = lazy(() => import("./pages/tutor/TutorExamDetail"));
 const TutorStudentList = lazy(() => import("./pages/tutor/TutorStudentList"));
 const TutorResultList = lazy(() => import("./pages/tutor/TutorResultList"));
 const TutorAnalytics = lazy(() => import("./pages/tutor/TutorAnalytics"));
+const TheoryMarkingQueue = lazy(() => import("./pages/tutor/TheoryMarkingQueue"));
 
 export default function App() {
   return (
@@ -66,6 +67,7 @@ export default function App() {
           <Route path="students" element={<TutorStudentList />} />
           <Route path="results" element={<TutorResultList />} />
           <Route path="analytics" element={<TutorAnalytics />} />
+          <Route path="marking" element={<TheoryMarkingQueue />} />
         </Route>
         <Route
           path="/admin"
@@ -84,6 +86,7 @@ export default function App() {
           <Route path="students" element={<StudentLookupPage />} />
           <Route path="tutors" element={<AdminTutorManagementPage />} />
           <Route path="analytics" element={<AdminSchoolAnalytics />} />
+          <Route path="marking" element={<TheoryMarkingQueue />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

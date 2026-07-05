@@ -11,6 +11,10 @@ const DEV_API_ROUTES = new Set([
   "ingest-document",
   "rag-query",
   "delete-document",
+  "start-exam-session",
+  "submit-exam",
+  "mark-theory",
+  "finalise-theory",
 ]);
 
 // Server-only vars the handlers read from process.env. loadEnv reads them from
@@ -20,6 +24,7 @@ function bridgeServerEnv(env) {
     "GEMINI_API_KEY",
     "GEMINI_MODEL",
     "GEMINI_EMBED_MODEL",
+    "GEMINI_MARK_MODEL",
     "FIREBASE_SERVICE_ACCOUNT",
   ]) {
     if (env[key] && !process.env[key]) {

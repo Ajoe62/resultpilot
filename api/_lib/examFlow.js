@@ -138,6 +138,113 @@ function sanitizeAnswers(answers, questions) {
   return safeAnswers;
 }
 
+// ---------------- theory ----------------
+
+const THEORY_TYPES = ["short_answer", "essay", "fill_blank", "structured"];
+const MAX_ANSWER_WORDS = 2000;
+
+function normalizeTheoryType(value) {
+  return THEORY_TYPES.includes(value) ? value : "short_answer";
+}
+
+function truncateWords(value, maxWords = MAX_ANSWER_WORDS) {
+  const text = cleanString(value);
+  if (!text) return "";
+  const words = text.split(/\s+/);
+  return words.length <= maxWords ? text : words.slice(0, maxWords).join(" ");
+}
+
+// Full (server-side) theory question — keeps marking schemes / answer keys that
+// must never reach the student.
+function normalizeTheoryQuestion(id, data) {
+  const type = normalizeTheoryType(data.type);
+  const question = {
+    id,
+    type,
+    questionText: cleanString(data.questionText),
+    maxMarks: Number(data.maxMarks) || 0,
+  };
+  const wordLimit = Number(data.wordLimit);
+  if (wordLimit > 0) question.wordLimit = wordLimit;
+
+  if (type === "short_answer") {
+    question.markingScheme = cleanString(data.markingScheme);
+    if (cleanString(data.sampleAnswer)) question.sampleAnswer = cleanString(data.sampleAnswer);
+  } else if (type === "essay") {
+    const scheme = data.markingScheme;
+    question.markingScheme =
+      scheme && typeof scheme === "object"
+        ? { content: cleanString(scheme.content), structure: cleanString(scheme.structure), language: cleanString(scheme.language) }
+        : { content: cleanString(scheme), structure: "", language: "" };
+    question.rubric = Array.isArray(data.rubric) ? data.rubric : [];
+  } else if (type === "fill_blank") {
+    question.sentence = cleanString(data.sentence || data.questionText);
+    question.acceptableAnswers = Array.isArray(data.acceptableAnswers)
+      ? data.acceptableAnswers.map((answer) => String(answer))
+      : [];
+    question.exactMatch = data.exactMatch === true;
+  } else {
+    question.subQuestions = Array.isArray(data.subQuestions)
+      ? data.subQuestions.map((sub, index) => ({
+          id: cleanString(sub.id) || `sub-${index}`,
+          text: cleanString(sub.text),
+          markingScheme: cleanString(sub.markingScheme),
+          maxMarks: Number(sub.maxMarks) || 0,
+        }))
+      : [];
+    question.maxMarks = question.subQuestions.reduce((sum, sub) => sum + sub.maxMarks, 0) || question.maxMarks;
+  }
+  return question;
+}
+
+// Strips marking schemes / answer keys for the student-facing session.
+function clientSafeTheory(question) {
+  const safe = {
+    id: question.id,
+    type: question.type,
+    questionText: question.questionText,
+    maxMarks: question.maxMarks,
+  };
+  if (question.wordLimit) safe.wordLimit = question.wordLimit;
+  if (question.type === "fill_blank") safe.sentence = question.sentence;
+  if (question.type === "structured") {
+    safe.subQuestions = (question.subQuestions || []).map((sub) => ({ id: sub.id, text: sub.text, maxMarks: sub.maxMarks }));
+  }
+  return safe;
+}
+
+function matchFillBlank(answer, acceptableAnswers, exactMatch) {
+  const value = cleanString(answer);
+  return (acceptableAnswers || []).some((candidate) => {
+    const target = cleanString(candidate);
+    return exactMatch ? value === target : value.toLowerCase() === target.toLowerCase();
+  });
+}
+
+// Builds one stored TheoryAnswer from the student's submitted answer. fill_blank
+// is graded deterministically here; everything else is left pending for AI.
+function buildTheoryAnswer(question, submitted) {
+  const maxMarks = Number(question.maxMarks) || 0;
+
+  if (question.type === "structured") {
+    const subAnswers = (question.subQuestions || []).map((sub) => ({
+      subQuestionId: sub.id,
+      studentAnswer: truncateWords((submitted.subAnswers || {})[sub.id]),
+      maxMarks: Number(sub.maxMarks) || 0,
+    }));
+    return { questionId: question.id, type: "structured", maxMarks, studentAnswer: "", subAnswers, reviewStatus: "pending" };
+  }
+
+  const studentAnswer = truncateWords(submitted.studentAnswer);
+
+  if (question.type === "fill_blank") {
+    const finalScore = matchFillBlank(studentAnswer, question.acceptableAnswers, question.exactMatch) ? maxMarks : 0;
+    return { questionId: question.id, type: "fill_blank", maxMarks, studentAnswer, tutorScore: finalScore, finalScore, reviewStatus: "auto_marked" };
+  }
+
+  return { questionId: question.id, type: question.type, maxMarks, studentAnswer, reviewStatus: "pending" };
+}
+
 // Matches an active exam by subject + PIN and creates an examSessions ledger doc
 // holding the answer key. Returns the client-safe session (no correctAnswer).
 export async function startExamSession(db, admin, data) {
@@ -165,13 +272,23 @@ export async function startExamSession(db, admin, data) {
   const exam = validateExam(examDoc.data(), examDoc.id);
 
   const questionsSnapshot = await examDoc.ref.collection("questions").orderBy("createdAt", "asc").get();
-  if (questionsSnapshot.empty) {
+  // Objective (MCQ) questions are auto-graded in this session; theory questions
+  // live in the same subcollection but are graded separately (server + tutor).
+  const mcqDocs = questionsSnapshot.docs.filter((doc) => doc.data().kind !== "theory");
+  const theoryDocs = questionsSnapshot.docs.filter((doc) => doc.data().kind === "theory");
+  if (!mcqDocs.length && !theoryDocs.length) {
     throw new ExamFlowError("This exam has no questions yet. Contact the tutor.", 422);
   }
 
   const questionSet = shuffleArray(
-    questionsSnapshot.docs.map((questionDoc) => validateQuestion(questionDoc.data(), questionDoc.id)),
+    mcqDocs.map((questionDoc) => validateQuestion(questionDoc.data(), questionDoc.id)),
   );
+  const theoryQuestions = theoryDocs.map((questionDoc) => normalizeTheoryQuestion(questionDoc.id, questionDoc.data()));
+  const examData = examDoc.data();
+  const theorySection = {
+    label: cleanString(examData.theorySectionLabel) || "Section B",
+    instructions: cleanString(examData.theoryInstructions),
+  };
 
   const startedAt = Date.now();
   const endsAt = startedAt + exam.duration * 60 * 1000;
@@ -181,6 +298,9 @@ export async function startExamSession(db, admin, data) {
     student,
     exam,
     questions: questionSet,
+    theoryQuestions,
+    hasTheory: theoryQuestions.length > 0,
+    theorySection,
     status: "in_progress",
     startedAtMs: startedAt,
     endsAtMs: endsAt,
@@ -194,7 +314,12 @@ export async function startExamSession(db, admin, data) {
     student,
     exam,
     questions: questionSet.map(({ correctAnswer, ...question }) => question),
+    theoryQuestions: theoryQuestions.map(clientSafeTheory),
+    hasMCQ: questionSet.length > 0,
+    hasTheory: theoryQuestions.length > 0,
+    theorySection,
     answers: {},
+    theoryAnswers: {},
     currentIndex: 0,
     startedAt,
     endsAt,
@@ -234,7 +359,8 @@ export async function submitExam(db, admin, data) {
     }
 
     const questions = Array.isArray(session.questions) ? session.questions : [];
-    if (!questions.length) {
+    const theoryQuestions = Array.isArray(session.theoryQuestions) ? session.theoryQuestions : [];
+    if (!questions.length && !theoryQuestions.length) {
       throw new ExamFlowError("Session has no questions.", 422);
     }
 
@@ -285,6 +411,40 @@ export async function submitExam(db, admin, data) {
       }
     }
 
+    // Theory capture: fill_blank is graded deterministically now; the rest is
+    // saved pending for AI marking (triggered after submission) + tutor review.
+    const hasMCQ = questions.length > 0;
+    const hasTheory = theoryQuestions.length > 0;
+    const theoryAnswersPayload =
+      data && typeof data.theoryAnswers === "object" && data.theoryAnswers ? data.theoryAnswers : {};
+    let theorySubmissionId = null;
+    let theoryStatus = null;
+    if (hasTheory) {
+      theorySubmissionId = sessionId;
+      const theoryAnswersOut = theoryQuestions.map((question) =>
+        buildTheoryAnswer(question, theoryAnswersPayload[question.id] || {}),
+      );
+      const theoryTotal = theoryQuestions.reduce((sum, question) => sum + (Number(question.maxMarks) || 0), 0);
+      theoryStatus = theoryAnswersOut.some((answer) => answer.reviewStatus === "pending") ? "pending_ai" : "ai_marked";
+      transaction.set(db.collection("theorySubmissions").doc(theorySubmissionId), {
+        schoolId,
+        tutorId,
+        examId: session.exam.id,
+        examTitle: session.exam.title,
+        resultId: sessionId,
+        studentName: session.student.fullName,
+        studentId: session.student.id || "",
+        classId: session.student.classId || "",
+        status: theoryStatus,
+        answers: theoryAnswersOut,
+        theoryTotal,
+        priority: false,
+        submittedAt: FieldValue.serverTimestamp(),
+        submittedAtMs,
+      });
+    }
+    const completionStatus = hasTheory ? "pending_theory" : "complete";
+
     const clientResult = {
       id: sessionId,
       studentName: session.student.fullName,
@@ -308,6 +468,14 @@ export async function submitExam(db, admin, data) {
       timeTaken,
       passed,
       submittedAtMs,
+      hasMCQ,
+      hasTheory,
+      mcqScore: score,
+      mcqTotal: total,
+      mcqPercentage: percentage,
+      completionStatus,
+      theorySubmissionId,
+      theoryStatus,
       answers: reviewItems.map((item) => ({
         questionId: item.questionId,
         selected: item.selected,
@@ -340,6 +508,13 @@ export async function submitExam(db, admin, data) {
       answers: clientResult.answers,
       submittedAt: FieldValue.serverTimestamp(),
       submittedAtMs,
+      hasMCQ: clientResult.hasMCQ,
+      hasTheory: clientResult.hasTheory,
+      mcqScore: clientResult.mcqScore,
+      mcqTotal: clientResult.mcqTotal,
+      mcqPercentage: clientResult.mcqPercentage,
+      completionStatus: clientResult.completionStatus,
+      theorySubmissionId: clientResult.theorySubmissionId,
       clientResult,
     });
 

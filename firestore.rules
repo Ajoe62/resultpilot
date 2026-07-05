@@ -179,6 +179,27 @@ service cloud.firestore {
       allow update, delete: if isSchoolAdmin(resource.data.schoolId);
     }
 
+    // ---------- theory submissions (server-written; tutor marks, admin oversees) ----------
+    match /theorySubmissions/{submissionId} {
+      allow read: if isSchoolAdmin(resource.data.schoolId)
+        || (isTutor(resource.data.schoolId) && resource.data.tutorId == request.auth.uid);
+      // Created only by the server (Admin SDK, on exam submission).
+      allow create: if false;
+      // The owning tutor saves marks / progress; the authoritative combine +
+      // score clamping happens server-side in /api/finalise-theory.
+      allow update: if isSchoolAdmin(resource.data.schoolId)
+        || (isTutor(resource.data.schoolId) && resource.data.tutorId == request.auth.uid);
+      allow delete: if isSchoolAdmin(resource.data.schoolId);
+    }
+
+    // ---------- notifications (server-written; recipient reads / marks read) ----------
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && resource.data.recipientId == request.auth.uid;
+      allow create: if false;
+      allow update: if isSignedIn() && resource.data.recipientId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.recipientId == request.auth.uid;
+    }
+
     // ================= existing admin-only collections (unchanged posture) =================
 
     match /studyDocuments/{docId} {

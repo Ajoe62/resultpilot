@@ -1,11 +1,13 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
+import NotificationBell from "../../components/NotificationBell";
 
 const NAV_ITEMS = [
   { label: "Overview", path: "/tutor/overview" },
   { label: "My Exams", path: "/tutor/exams" },
   { label: "Students", path: "/tutor/students" },
   { label: "Results", path: "/tutor/results" },
+  { label: "Marking", path: "/tutor/marking" },
   { label: "Analytics", path: "/tutor/analytics" },
 ];
 
@@ -45,6 +47,9 @@ export default function TutorLayout() {
       </aside>
 
       <main className="admin-content">
+        <div className="content-header">
+          <NotificationBell />
+        </div>
         <Outlet />
       </main>
     </div>

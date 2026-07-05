@@ -8,7 +8,7 @@ import { httpsCallable } from "firebase/functions";
 import { createContext, useContext, useEffect, useState } from "react";
 import { usesFunctionExamFlow, usesVercelExamFlow } from "../lib/examMode";
 import { cloudFunctions, db } from "../lib/firebase";
-import { submitExamRequest } from "../lib/apiClient";
+import { markTheory, submitExamRequest } from "../lib/apiClient";
 import {
   DEFAULT_ASSESSMENT_TYPE,
   getAssessmentMaxScore,
@@ -97,6 +97,28 @@ export function ExamSessionProvider({ children }) {
     });
   };
 
+  const selectTheoryAnswer = (questionId, studentAnswer) => {
+    setSession((current) => {
+      if (!current) return current;
+      const theoryAnswers = { ...(current.theoryAnswers || {}) };
+      theoryAnswers[questionId] = { ...(theoryAnswers[questionId] || {}), studentAnswer };
+      return { ...current, theoryAnswers };
+    });
+  };
+
+  const setTheorySubAnswer = (questionId, subQuestionId, value) => {
+    setSession((current) => {
+      if (!current) return current;
+      const theoryAnswers = { ...(current.theoryAnswers || {}) };
+      const existing = theoryAnswers[questionId] || {};
+      theoryAnswers[questionId] = {
+        ...existing,
+        subAnswers: { ...(existing.subAnswers || {}), [subQuestionId]: value },
+      };
+      return { ...current, theoryAnswers };
+    });
+  };
+
   const moveNext = () => {
     setSession((current) => {
       if (!current) return current;
@@ -144,11 +166,16 @@ export function ExamSessionProvider({ children }) {
         answers: session.answers,
       });
       result = response.data;
-    } else if (usesVercelExamFlow) {
+    } else if (usesVercelExamFlow || session.serverGraded || session.hasTheory) {
       result = await submitExamRequest({
         sessionId: session.sessionId,
         answers: session.answers,
+        theoryAnswers: session.theoryAnswers || {},
       });
+      // Kick off AI marking without blocking the student.
+      if (result?.hasTheory && result.theorySubmissionId) {
+        markTheory({ submissionId: result.theorySubmissionId }).catch(() => {});
+      }
     } else {
       const submittedAtMs = Date.now();
       const reviewItems = session.questions.map((question) => {
@@ -247,6 +274,8 @@ export function ExamSessionProvider({ children }) {
     hasResult: Boolean(session?.submittedResult),
     startSession,
     selectAnswer,
+    selectTheoryAnswer,
+    setTheorySubAnswer,
     moveNext,
     movePrevious,
     submitSession,

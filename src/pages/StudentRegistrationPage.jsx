@@ -243,7 +243,7 @@ export default function StudentRegistrationPage() {
 
       if (usesVercelExamFlow) {
         const session = await startExamSessionRequest(startPayload);
-        startSession(session);
+        startSession({ ...session, serverGraded: true });
         navigate("/exam");
         return;
       }
@@ -271,19 +271,29 @@ export default function StudentRegistrationPage() {
       }
 
       const examData = matchingExams[0];
+
+      // Theory (or mixed) exams must be graded server-side (AI + tutor review),
+      // so route them through the session endpoint regardless of exam mode.
+      if (examData.hasTheory) {
+        const session = await startExamSessionRequest(startPayload);
+        startSession({ ...session, serverGraded: true });
+        navigate("/exam");
+        return;
+      }
+
       const questionsSnapshot = await getDocs(
         query(
           collection(liteDb, "exams", examData.id, "questions"),
           orderBy("createdAt", "asc"),
         ),
       );
-      const questions = questionsSnapshot.docs.map((document) => ({
-        id: document.id,
-        ...document.data(),
-      }));
+      const questions = questionsSnapshot.docs
+        .map((document) => ({ id: document.id, ...document.data() }))
+        // Objective questions only; theory questions are graded separately.
+        .filter((question) => question.kind !== "theory");
 
       if (!questions.length) {
-        setError("This exam has no questions yet. Contact the tutor.");
+        setError("This exam has no objective questions yet. Contact the tutor.");
         return;
       }
 
