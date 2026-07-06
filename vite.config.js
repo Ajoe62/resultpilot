@@ -15,6 +15,7 @@ const DEV_API_ROUTES = new Set([
   "submit-exam",
   "mark-theory",
   "finalise-theory",
+  "verify-student",
 ]);
 
 // Server-only vars the handlers read from process.env. loadEnv reads them from

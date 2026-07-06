@@ -78,6 +78,13 @@ export function startExamSessionRequest(body) {
   return postJson("/api/start-exam-session", body);
 }
 
+// Public — anti-impersonation check at exam start, verified server-side against
+// the private studentAccess code. Resolves { valid, hasCode } on success; throws
+// on a wrong code (401). No code provisioned yet => { valid:true, hasCode:false }.
+export function verifyStudent(studentId, code) {
+  return postJson("/api/verify-student", { studentId, code });
+}
+
 export function submitExamRequest(body) {
   return postJson("/api/submit-exam", body);
 }

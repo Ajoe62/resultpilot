@@ -79,6 +79,7 @@ beforeEach(async () => {
     await setDoc(doc(db, "students", "stud-in"), { fullName: "In Class", classId: "class-active", schoolId: SCHOOL, isActive: false });
     await setDoc(doc(db, "students", "stud-out"), { fullName: "Out Class", classId: "class-zzz", schoolId: SCHOOL, isActive: false });
     await setDoc(doc(db, "flags", "flag-1"), { schoolId: SCHOOL, raisedBy: TUTOR_UID, note: "needs review" });
+    await setDoc(doc(db, "studentAccess", "student-active"), { code: "ABC234", studentId: "student-active", schoolId: SCHOOL });
     await setDoc(doc(db, "exams", "exam-schoolB"), { title: "B", subject: "B", pin: "b1", isActive: false, schoolId: "school-B", tutorId: "legacy" });
     await setDoc(doc(db, "exams", "exam-schoolC"), { title: "C", subject: "C", pin: "c1", isActive: false, schoolId: "school-C", tutorId: "legacy" });
   });
@@ -446,6 +447,34 @@ describe("flags (tutor raises, admin reviews)", () => {
   test("tutor reads their own flag; admin reads flags", async () => {
     await assertSucceeds(getDoc(doc(asTutor(), "flags", "flag-1")));
     await assertSucceeds(getDoc(doc(asSchoolAdmin(), "flags", "flag-1")));
+  });
+});
+
+describe("studentAccess (private per-student codes — admin only, never public)", () => {
+  test("unauth CANNOT read an access code (the whole point — classmates must not see it)", async () => {
+    await assertFails(getDoc(doc(unauth(), "studentAccess", "student-active")));
+  });
+  test("signed-in NON-admin cannot read an access code", async () => {
+    await assertFails(getDoc(doc(asUser(), "studentAccess", "student-active")));
+  });
+  test("a tutor cannot read an access code", async () => {
+    await assertFails(getDoc(doc(asTutor(), "studentAccess", "student-active")));
+  });
+  test("school admin can read, create, and reset codes in their school", async () => {
+    await assertSucceeds(getDoc(doc(asSchoolAdmin(), "studentAccess", "student-active")));
+    await assertSucceeds(
+      setDoc(doc(asSchoolAdmin(), "studentAccess", "new-stud"), { code: "ZZ999", studentId: "new-stud", schoolId: SCHOOL }),
+    );
+    await assertSucceeds(updateDoc(doc(asSchoolAdmin(), "studentAccess", "student-active"), { code: "NEW111" }));
+  });
+  test("legacy root admin can read a code (transitional)", async () => {
+    await assertSucceeds(getDoc(doc(asAdmin(), "studentAccess", "student-active")));
+  });
+  test("admin from ANOTHER school cannot read or create a code here", async () => {
+    await assertFails(getDoc(doc(asOtherSchoolAdmin(), "studentAccess", "student-active")));
+    await assertFails(
+      setDoc(doc(asOtherSchoolAdmin(), "studentAccess", "x"), { code: "AAAAA", studentId: "x", schoolId: SCHOOL }),
+    );
   });
 });
 

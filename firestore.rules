@@ -135,6 +135,17 @@ service cloud.firestore {
       allow update, delete: if isSchoolAdmin(resource.data.schoolId);
     }
 
+    // ---------- student access codes (private; anti-impersonation) ----------
+    // A per-student secret verified SERVER-SIDE at exam start (/api/verify-student,
+    // Admin SDK — bypasses these rules). It must NEVER be publicly readable: that's
+    // the whole point, since a code on the public /students doc would be visible to
+    // classmates. Only the school admin sees / prints / resets codes here.
+    match /studentAccess/{studentId} {
+      allow read: if isSchoolAdmin(resource.data.schoolId);
+      allow create: if isSchoolAdmin(request.resource.data.schoolId);
+      allow update, delete: if isSchoolAdmin(resource.data.schoolId);
+    }
+
     match /exams/{examId} {
       // Active exams are readable by anyone (stateless student PIN access).
       allow read: if isSchoolAdmin(resource.data.schoolId)

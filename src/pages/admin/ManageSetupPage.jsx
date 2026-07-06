@@ -2,14 +2,29 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
 } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
 import { db } from "../../lib/firebase";
+
+// Access-code alphabet: no 0/O/1/I/L so printed codes aren't misread.
+const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+function generateAccessCode(length = 6) {
+  const values = new Uint32Array(length);
+  crypto.getRandomValues(values);
+  let out = "";
+  for (let i = 0; i < length; i += 1) {
+    out += CODE_CHARS[values[i] % CODE_CHARS.length];
+  }
+  return out;
+}
 
 const INITIAL_SCHOOL_FORM = {
   name: "",
@@ -48,6 +63,11 @@ export default function ManageSetupPage() {
   const [classForm, setClassForm] = useState(INITIAL_CLASS_FORM);
   const [studentForm, setStudentForm] = useState(INITIAL_STUDENT_FORM);
   const [error, setError] = useState("");
+  // studentId -> access code, populated lazily (Show) or on create/reset. Codes
+  // are private (rules block public reads), so we fetch per-student on demand
+  // rather than listening to the whole collection.
+  const [codes, setCodes] = useState({});
+  const [codeBusy, setCodeBusy] = useState("");
 
   useEffect(() => {
     const unsubscribeSchools = onSnapshot(
@@ -171,7 +191,7 @@ export default function ManageSetupPage() {
       return;
     }
 
-    await addDoc(collection(db, "students"), {
+    const studentRef = await addDoc(collection(db, "students"), {
       schoolId: selectedSchool.id,
       schoolName: selectedSchool.name,
       classId: selectedClass.id,
@@ -181,11 +201,73 @@ export default function ManageSetupPage() {
       isActive: true,
       createdAt: serverTimestamp(),
     });
+
+    // Provision the private access code immediately so it can be handed to the
+    // student. Non-fatal: if this write fails the student still exists (fail-open
+    // at verify time), and a code can be generated later from the list.
+    try {
+      const code = generateAccessCode();
+      await setDoc(doc(db, "studentAccess", studentRef.id), {
+        code,
+        studentId: studentRef.id,
+        schoolId: selectedSchool.id,
+        createdAt: serverTimestamp(),
+      });
+      setCodes((current) => ({ ...current, [studentRef.id]: code }));
+    } catch (codeError) {
+      setError(`Student added, but the access code could not be created: ${codeError.message}`);
+    }
+
     setStudentForm((current) => ({
       ...current,
       fullName: "",
       admissionNumber: "",
     }));
+  };
+
+  // Reveal an existing student's code; generate one on the fly for students
+  // onboarded before access codes existed.
+  const revealCode = async (student) => {
+    setError("");
+    setCodeBusy(student.id);
+    try {
+      const ref = doc(db, "studentAccess", student.id);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        setCodes((current) => ({ ...current, [student.id]: snap.data().code }));
+      } else {
+        const code = generateAccessCode();
+        await setDoc(ref, {
+          code,
+          studentId: student.id,
+          schoolId: student.schoolId,
+          createdAt: serverTimestamp(),
+        });
+        setCodes((current) => ({ ...current, [student.id]: code }));
+      }
+    } catch (revealError) {
+      setError(revealError.message);
+    } finally {
+      setCodeBusy("");
+    }
+  };
+
+  const resetCode = async (student) => {
+    setError("");
+    setCodeBusy(student.id);
+    try {
+      const code = generateAccessCode();
+      await setDoc(
+        doc(db, "studentAccess", student.id),
+        { code, studentId: student.id, schoolId: student.schoolId, updatedAt: serverTimestamp() },
+        { merge: true },
+      );
+      setCodes((current) => ({ ...current, [student.id]: code }));
+    } catch (resetError) {
+      setError(resetError.message);
+    } finally {
+      setCodeBusy("");
+    }
   };
 
   const toggleActive = async (collectionName, item) => {
@@ -338,6 +420,7 @@ export default function ManageSetupPage() {
                 <th>Admission No.</th>
                 <th>School</th>
                 <th>Class</th>
+                <th>Access Code</th>
                 <th>Status</th>
                 <th>Action</th>
               </tr>
@@ -349,6 +432,31 @@ export default function ManageSetupPage() {
                   <td>{student.admissionNumber || "-"}</td>
                   <td>{student.schoolName || getSchoolName(schools, student.schoolId)}</td>
                   <td>{student.className || getClassName(classes, student.classId)}</td>
+                  <td>
+                    {codes[student.id] ? (
+                      <span className="code-cell">
+                        <code>{codes[student.id]}</code>
+                        <button
+                          className="link-button"
+                          disabled={codeBusy === student.id}
+                          onClick={() => resetCode(student)}
+                          title="Generate a new code (invalidates the old one)"
+                          type="button"
+                        >
+                          {codeBusy === student.id ? "…" : "Reset"}
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        className="link-button"
+                        disabled={codeBusy === student.id}
+                        onClick={() => revealCode(student)}
+                        type="button"
+                      >
+                        {codeBusy === student.id ? "…" : "Show code"}
+                      </button>
+                    )}
+                  </td>
                   <td>{student.isActive === false ? "Inactive" : "Active"}</td>
                   <td>
                     <button

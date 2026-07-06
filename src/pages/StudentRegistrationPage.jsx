@@ -11,7 +11,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useExamSession } from "../context/ExamSessionContext";
 import { usesFunctionExamFlow, usesVercelExamFlow } from "../lib/examMode";
 import { cloudFunctions, liteDb } from "../lib/firebase";
-import { startExamSessionRequest } from "../lib/apiClient";
+import { startExamSessionRequest, verifyStudent } from "../lib/apiClient";
 import { shuffleArray } from "../lib/utils";
 
 function getSetupErrorMessage(error) {
@@ -40,6 +40,7 @@ export default function StudentRegistrationPage() {
     className: "",
     fullName: "",
     admissionNumber: "",
+    accessCode: "",
     subject: "",
     pin: "",
   });
@@ -189,7 +190,7 @@ export default function StudentRegistrationPage() {
       [name]: value,
       ...(name === "schoolId" ? { classId: "", studentId: "", schoolName: "" } : {}),
       ...(name === "classId" ? { studentId: "", className: "" } : {}),
-      ...(name === "studentId" ? { fullName: "" } : {}),
+      ...(name === "studentId" ? { fullName: "", accessCode: "" } : {}),
       ...(name === "schoolName" ? { schoolId: "", classId: "", studentId: "" } : {}),
       ...(name === "className" ? { classId: "", studentId: "" } : {}),
       ...(name === "fullName" ? { studentId: "" } : {}),
@@ -218,6 +219,20 @@ export default function StudentRegistrationPage() {
     setLoading(true);
 
     try {
+      // Anti-impersonation: when a student is picked from the roster, verify the
+      // per-student access code server-side before starting. (A code on the public
+      // students doc would be readable by classmates, so it's checked via the API
+      // against the private studentAccess collection.) verifyStudent throws on a
+      // wrong code — the catch below surfaces the message.
+      if (selectedStudent?.id) {
+        const check = await verifyStudent(selectedStudent.id, form.accessCode.trim());
+        if (!check?.valid) {
+          setError("Incorrect access code for the selected student. Ask your tutor for your code.");
+          setLoading(false);
+          return;
+        }
+      }
+
       clearSession();
 
       const startPayload = {
@@ -447,6 +462,19 @@ export default function StudentRegistrationPage() {
               </label>
             </div>
           )}
+
+          {hasStudentOptions ? (
+            <label className="field">
+              <span>Access Code</span>
+              <input
+                name="accessCode"
+                value={form.accessCode}
+                onChange={updateField}
+                placeholder="Your personal exam code"
+                autoComplete="off"
+              />
+            </label>
+          ) : null}
 
           <div className="field-grid">
             <label className="field">
