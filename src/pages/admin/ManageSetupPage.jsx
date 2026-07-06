@@ -225,6 +225,14 @@ export default function ManageSetupPage() {
     }));
   };
 
+  // Pre-multi-tenant students may not carry schoolId; derive it from their class
+  // (or matching school) so we never write `undefined` into the code doc.
+  const resolveSchoolId = (student) =>
+    student.schoolId ||
+    classes.find((classItem) => classItem.id === student.classId)?.schoolId ||
+    schools.find((school) => school.name === student.schoolName)?.id ||
+    "";
+
   // Reveal an existing student's code; generate one on the fly for students
   // onboarded before access codes existed.
   const revealCode = async (student) => {
@@ -240,13 +248,13 @@ export default function ManageSetupPage() {
         await setDoc(ref, {
           code,
           studentId: student.id,
-          schoolId: student.schoolId,
+          schoolId: resolveSchoolId(student),
           createdAt: serverTimestamp(),
         });
         setCodes((current) => ({ ...current, [student.id]: code }));
       }
     } catch (revealError) {
-      setError(revealError.message);
+      setError(`Could not load access code: ${revealError.message}`);
     } finally {
       setCodeBusy("");
     }
@@ -259,7 +267,7 @@ export default function ManageSetupPage() {
       const code = generateAccessCode();
       await setDoc(
         doc(db, "studentAccess", student.id),
-        { code, studentId: student.id, schoolId: student.schoolId, updatedAt: serverTimestamp() },
+        { code, studentId: student.id, schoolId: resolveSchoolId(student), updatedAt: serverTimestamp() },
         { merge: true },
       );
       setCodes((current) => ({ ...current, [student.id]: code }));

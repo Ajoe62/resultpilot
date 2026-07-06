@@ -519,6 +519,14 @@ a {
 }
 
 .admin-sidebar {
+  /* Pin the sidebar to the viewport so it stays put while the content scrolls.
+     align-self:start + a viewport height lets sticky work inside the grid; the
+     sidebar scrolls internally if its own content is taller than the screen. */
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
   padding: 2rem 1.25rem;
   border-right: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.85);
@@ -649,6 +657,10 @@ th {
   }
 
   .admin-sidebar {
+    /* Stacked layout: let the sidebar flow with the page again. */
+    position: static;
+    height: auto;
+    overflow-y: visible;
     border-right: none;
     border-bottom: 1px solid var(--border);
   }
